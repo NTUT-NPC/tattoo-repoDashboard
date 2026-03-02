@@ -837,7 +837,8 @@ code { color:#93c5fd; }
   backdrop-filter: blur(3px);
   z-index: 70;
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-items: center;
   padding: 1rem;
 }
 
@@ -908,8 +909,9 @@ code { color:#93c5fd; }
 }
 
 .detail-card-wrap {
-  width: min(95vw, 1120px);
+  width: min(1120px, calc(100vw - 2rem));
   max-height: 92vh;
+  margin-inline: auto;
   position: relative;
   display: grid;
   gap: .45rem;
@@ -973,7 +975,7 @@ code { color:#93c5fd; }
 }
 
 @media (max-width: 760px) {
-  .detail-card-wrap { width: min(96vw, 1120px); }
+  .detail-card-wrap { width: min(1120px, calc(100vw - 2rem)); }
 }
 
 @media (max-width: 640px) {
@@ -994,5 +996,7 @@ code { color:#93c5fd; }
     max-height: calc(100vh - 1.1rem);
     border-radius: 12px;
   }
+  .detail-mask { padding: .55rem; }
+  .detail-card-wrap { width: min(1120px, calc(100vw - 1.1rem)); }
 }
 </style>
