@@ -897,7 +897,8 @@ code { color:#93c5fd; }
   z-index: 75;
   display: grid;
   place-items: center;
-  padding: 1rem;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  overflow-y: auto;
 }
 
 .settings-card {
@@ -910,6 +911,13 @@ code { color:#93c5fd; }
   box-shadow: 0 22px 60px rgba(2, 6, 23, .62);
   display: grid;
   grid-template-rows: auto 1fr;
+}
+
+@supports (height: 100dvh) {
+  .settings-card {
+    min-height: min(calc(86dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)), 860px);
+    max-height: calc(94dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
 }
 
 .onboarding-card {
@@ -1044,9 +1052,16 @@ code { color:#93c5fd; }
   .settings-btn { width: 28px; height: 28px; }
   .settings-card {
     width: 100%;
-    min-height: calc(100vh - 1.1rem);
-    max-height: calc(100vh - 1.1rem);
+    min-height: calc(100vh - 1.1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(100vh - 1.1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     border-radius: 12px;
+  }
+
+  @supports (height: 100dvh) {
+    .settings-card {
+      min-height: calc(100dvh - 1.1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      max-height: calc(100dvh - 1.1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    }
   }
   .detail-mask { padding: .55rem; }
   .detail-card-wrap { width: min(1120px, calc(100vw - 1.1rem)); }
