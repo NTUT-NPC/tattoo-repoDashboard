@@ -130,7 +130,7 @@
               <p class="token-hint">{{ tokenMessage }}</p>
               <p class="token-hint">
                 不知道怎麼建立 Token？可參考
-                <a href="https://github.com/NTUT-NPC/tattoo-repoDashboard#%E8%A8%AD%E5%AE%9A%E5%80%8B%E4%BA%BA-github-api-token%E5%BB%BA%E8%AD%B0" target="_blank" rel="noreferrer noopener">
+                <a href="https://github.com/NTUT-NPC/tattoo-repoDashboard#%E5%AE%8C%E6%95%B4-github-token-%E7%94%B3%E8%AB%8B%E6%95%99%E5%AD%B8%E5%BB%BA%E8%AD%B0%E5%85%88%E7%9C%8B" target="_blank" rel="noreferrer noopener">
                   README 教學
                 </a>
                 。
@@ -160,6 +160,28 @@
                   github.com/NTUT-NPC/tattoo-repoDashboard
                 </a>
               </p>
+            </div>
+          </div>
+        </section>
+      </Transition>
+
+      <Transition name="settings-modal">
+        <section
+          v-if="showOnboardingModal"
+          class="settings-mask"
+          aria-live="polite"
+          @click="handleOnboardingMaskClick"
+        >
+          <div class="settings-card onboarding-card" role="dialog" aria-modal="true" aria-label="初次使用提示">
+            <div class="settings-toolbar">
+              <h2>歡迎使用 Tattoo PR Dashboard</h2>
+            </div>
+            <div class="settings-content">
+              <p class="token-hint">你可以先用匿名模式快速瀏覽，也可以先在設定填入 GitHub API Token，避免匿名模式遇到連線限制。</p>
+              <div class="token-controls">
+                <button type="button" class="secondary" @click="continueWithAnonymousMode">使用匿名模式</button>
+                <button type="button" @click="openSettingsFromOnboarding">前往填入 API 金鑰</button>
+              </div>
             </div>
           </div>
         </section>
@@ -215,6 +237,7 @@ const DEFAULT_STATUS_ANIMATION_CLOSE_DELAY_SEC = 8;
 const MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC = 3;
 const MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC = 20;
 const STATUS_ANIMATION_CLOSE_DELAY_STORAGE_KEY = 'tattoo-dashboard-pr-status-close-delay-sec';
+const ONBOARDING_DISMISSED_STORAGE_KEY = 'tattoo-dashboard-onboarding-dismissed';
 
 type ActivityDisplayMode = 'separate' | 'latest';
 type DateDisplayMode = 'smart' | 'full';
@@ -228,6 +251,7 @@ const showTokenPanel = ref(false);
 const hasTokenSaved = ref(false);
 const tokenInput = ref('');
 const tokenMessage = ref('目前未設定 token，將使用匿名請求。');
+const showOnboardingModal = ref(false);
 const refreshIntervalSec = ref(DEFAULT_REFRESH_INTERVAL_SEC);
 const refreshIntervalInput = ref(DEFAULT_REFRESH_INTERVAL_SEC);
 const refreshCountdownSec = ref(DEFAULT_REFRESH_INTERVAL_SEC);
@@ -445,7 +469,9 @@ async function executeRefreshCycle() {
     }
   } catch (e) {
     console.error(e);
-    error.value = '資料更新失敗，先顯示上一版資料。請稍後再試。';
+    error.value = hasTokenSaved.value
+      ? '資料更新失敗，先顯示上一版資料。請稍後再試。'
+      : '匿名模式連線失敗。請到設定中申請並填入 GitHub API 金鑰後再試一次。';
   } finally {
     isUpdating.value = false;
   }
@@ -505,6 +531,26 @@ function handleSettingsMaskClick(event: MouseEvent) {
   }
 
   showTokenPanel.value = false;
+}
+
+function handleOnboardingMaskClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null;
+  if (!target || target.closest('.onboarding-card')) return;
+  continueWithAnonymousMode();
+}
+
+function dismissOnboardingModal() {
+  showOnboardingModal.value = false;
+  window.localStorage.setItem(ONBOARDING_DISMISSED_STORAGE_KEY, 'true');
+}
+
+function continueWithAnonymousMode() {
+  dismissOnboardingModal();
+}
+
+function openSettingsFromOnboarding() {
+  dismissOnboardingModal();
+  showTokenPanel.value = true;
 }
 
 function handleEscape(event: KeyboardEvent) {
@@ -689,6 +735,7 @@ onMounted(async () => {
   refreshIntervalInput.value = refreshIntervalSec.value;
   statusAnimationCloseDelaySec.value = readStatusAnimationCloseDelayFromStorage();
   statusAnimationCloseDelayInputSec.value = statusAnimationCloseDelaySec.value;
+  showOnboardingModal.value = window.localStorage.getItem(ONBOARDING_DISMISSED_STORAGE_KEY) !== 'true';
 
   hasTokenSaved.value = hasSavedGithubToken();
   tokenMessage.value = hasTokenSaved.value
@@ -862,6 +909,11 @@ code { color:#93c5fd; }
   box-shadow: 0 22px 60px rgba(2, 6, 23, .62);
   display: grid;
   grid-template-rows: auto 1fr;
+}
+
+.onboarding-card {
+  width: min(96vw, 680px);
+  min-height: auto;
 }
 
 .settings-toolbar {
