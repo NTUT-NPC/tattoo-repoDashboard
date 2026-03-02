@@ -91,6 +91,22 @@
               <p class="token-hint">權限狀態：{{ desktopNotificationPermissionText }}</p>
               <p class="token-hint">當 PR 的 review/CI 狀態變更時，會發送桌面通知。</p>
 
+              <label class="token-label">避免螢幕關閉</label>
+              <div class="token-controls refresh-controls notification-controls">
+                <label class="toggle-control" for="screen-wake-lock-enabled">
+                  <input
+                    id="screen-wake-lock-enabled"
+                    v-model="screenWakeLockEnabled"
+                    type="checkbox"
+                    :disabled="!isWakeLockSupported"
+                    @change="applyScreenWakeLockSetting"
+                  />
+                  <span>啟用後在此分頁保持前景時嘗試防止螢幕關閉</span>
+                </label>
+              </div>
+              <p class="token-hint">狀態：{{ wakeLockStatusText }}</p>
+              <p class="token-hint">此功能依賴瀏覽器 Wake Lock API，切換分頁或系統策略可能會解除。</p>
+
               <label for="date-display-mode" class="token-label">更新時間顯示</label>
               <div class="token-controls refresh-controls">
                 <select id="date-display-mode" v-model="dateDisplayMode" @change="applyDateDisplayMode">
@@ -233,6 +249,7 @@ const REFRESH_INTERVAL_STORAGE_KEY = 'tattoo-dashboard-refresh-interval-sec';
 const ACTIVITY_DISPLAY_MODE_STORAGE_KEY = 'tattoo-dashboard-activity-display-mode';
 const DATE_DISPLAY_MODE_STORAGE_KEY = 'tattoo-dashboard-date-display-mode';
 const DESKTOP_NOTIFICATION_STORAGE_KEY = 'tattoo-dashboard-desktop-notification-enabled';
+const SCREEN_WAKE_LOCK_STORAGE_KEY = 'tattoo-dashboard-screen-wake-lock-enabled';
 const DEFAULT_STATUS_ANIMATION_CLOSE_DELAY_SEC = 8;
 const MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC = 3;
 const MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC = 20;
@@ -241,6 +258,11 @@ const ONBOARDING_DISMISSED_STORAGE_KEY = 'tattoo-dashboard-onboarding-dismissed'
 
 type ActivityDisplayMode = 'separate' | 'latest';
 type DateDisplayMode = 'smart' | 'full';
+type NavigatorWithWakeLock = Navigator & {
+  wakeLock?: {
+    request: (type: 'screen') => Promise<WakeLockSentinel>;
+  };
+};
 
 const prs = ref<PullRequestCard[]>([]);
 const selectedPr = ref<PullRequestCard | null>(null);
@@ -260,6 +282,7 @@ const statusAnimationCloseDelayInputSec = ref(DEFAULT_STATUS_ANIMATION_CLOSE_DEL
 const activityDisplayMode = ref<ActivityDisplayMode>('separate');
 const dateDisplayMode = ref<DateDisplayMode>('smart');
 const desktopNotificationEnabled = ref(false);
+const screenWakeLockEnabled = ref(false);
 const detailEffect = ref<'new_pr' | 'ci_complete' | 'merged'>('ci_complete');
 const detailCiSummary = ref<Array<{ name: string; result: 'success' | 'failure' }>>([]);
 const detailShowEffect = ref(false);
@@ -267,6 +290,7 @@ let timer: ReturnType<typeof setInterval> | null = null;
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 let previewCloseTimer: ReturnType<typeof setTimeout> | null = null;
 let nextRefreshAt: number | null = null;
+let wakeLockSentinel: WakeLockSentinel | null = null;
 
 let refreshInFlight: Promise<void> | null = null;
 let refreshQueued = false;
@@ -289,6 +313,12 @@ const desktopNotificationPermissionText = computed(() => {
   if (Notification.permission === 'granted') return '已允許';
   if (Notification.permission === 'denied') return '已封鎖（請至瀏覽器設定開啟）';
   return '尚未授權';
+});
+const isWakeLockSupported = computed(() => Boolean((navigator as NavigatorWithWakeLock).wakeLock));
+const wakeLockStatusText = computed(() => {
+  if (!isWakeLockSupported.value) return '目前瀏覽器不支援 Wake Lock API';
+  if (!screenWakeLockEnabled.value) return '已關閉';
+  return wakeLockSentinel ? '啟用中（螢幕保持喚醒）' : '啟用中（等待重新套用）';
 });
 
 function readRefreshIntervalFromStorage() {
@@ -314,6 +344,10 @@ function readDateDisplayModeFromStorage(): DateDisplayMode {
 
 function readDesktopNotificationSettingFromStorage() {
   return window.localStorage.getItem(DESKTOP_NOTIFICATION_STORAGE_KEY) === 'true';
+}
+
+function readScreenWakeLockSettingFromStorage() {
+  return window.localStorage.getItem(SCREEN_WAKE_LOCK_STORAGE_KEY) === 'true';
 }
 
 function readStatusAnimationCloseDelayFromStorage() {
@@ -421,6 +455,64 @@ async function applyDesktopNotificationSetting() {
   if ('Notification' in window && Notification.permission === 'granted') {
     tokenMessage.value = '已開啟 PR 狀態變更桌面通知。';
   }
+}
+
+async function requestScreenWakeLock() {
+  if (!isWakeLockSupported.value) {
+    tokenMessage.value = '目前瀏覽器不支援防止螢幕關閉功能。';
+    return;
+  }
+
+  if (document.visibilityState !== 'visible') return;
+  if (wakeLockSentinel) return;
+
+  try {
+    const navigatorWithWakeLock = navigator as NavigatorWithWakeLock;
+    wakeLockSentinel = await navigatorWithWakeLock.wakeLock?.request('screen') ?? null;
+    if (wakeLockSentinel) {
+      wakeLockSentinel.addEventListener('release', () => {
+        wakeLockSentinel = null;
+      });
+    }
+  } catch (wakeLockError) {
+    console.warn('failed to acquire wake lock', wakeLockError);
+    tokenMessage.value = '無法啟用防止螢幕關閉，請確認瀏覽器權限與分頁狀態。';
+  }
+}
+
+async function releaseScreenWakeLock() {
+  if (!wakeLockSentinel) return;
+
+  try {
+    await wakeLockSentinel.release();
+  } catch (wakeLockError) {
+    console.warn('failed to release wake lock', wakeLockError);
+  } finally {
+    wakeLockSentinel = null;
+  }
+}
+
+async function syncScreenWakeLock() {
+  if (screenWakeLockEnabled.value) {
+    await requestScreenWakeLock();
+    return;
+  }
+
+  await releaseScreenWakeLock();
+}
+
+async function applyScreenWakeLockSetting() {
+  window.localStorage.setItem(SCREEN_WAKE_LOCK_STORAGE_KEY, String(screenWakeLockEnabled.value));
+  await syncScreenWakeLock();
+  tokenMessage.value = screenWakeLockEnabled.value
+    ? '已啟用防止螢幕關閉（支援時生效）。'
+    : '已關閉防止螢幕關閉。';
+}
+
+function handleVisibilityChange() {
+  if (!screenWakeLockEnabled.value) return;
+  if (document.visibilityState !== 'visible') return;
+  void requestScreenWakeLock();
 }
 
 function updateRefreshCountdown() {
@@ -731,6 +823,7 @@ onMounted(async () => {
   activityDisplayMode.value = readActivityDisplayModeFromStorage();
   dateDisplayMode.value = readDateDisplayModeFromStorage();
   desktopNotificationEnabled.value = readDesktopNotificationSettingFromStorage();
+  screenWakeLockEnabled.value = readScreenWakeLockSettingFromStorage();
   refreshIntervalSec.value = readRefreshIntervalFromStorage();
   refreshIntervalInput.value = refreshIntervalSec.value;
   statusAnimationCloseDelaySec.value = readStatusAnimationCloseDelayFromStorage();
@@ -744,16 +837,20 @@ onMounted(async () => {
 
   await refresh();
   restartRefreshTimer();
+  await syncScreenWakeLock();
   countdownTimer = setInterval(updateRefreshCountdown, 1000);
   updateRefreshCountdown();
   window.addEventListener('keydown', handleEscape);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 
 onUnmounted(() => {
   if (timer) clearInterval(timer);
   if (countdownTimer) clearInterval(countdownTimer);
   if (previewCloseTimer) clearTimeout(previewCloseTimer);
+  void releaseScreenWakeLock();
   window.removeEventListener('keydown', handleEscape);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 </script>
 
