@@ -36,14 +36,26 @@ const OWNER = 'NTUT-NPC';
 const REPO = 'tattoo';
 const MAX_PRS = 12;
 const TOKEN_STORAGE_KEY = 'github_api_token';
+declare const __DEFAULT_GITHUB_TOKEN__: string;
+
+const DEFAULT_GITHUB_TOKEN = (__DEFAULT_GITHUB_TOKEN__ ?? '').trim();
 
 function getTokenFromStorage(): string {
   if (typeof window === 'undefined') return '';
   return window.localStorage.getItem(TOKEN_STORAGE_KEY)?.trim() ?? '';
 }
 
+function getActiveToken(): string {
+  const storedToken = getTokenFromStorage();
+  return storedToken || DEFAULT_GITHUB_TOKEN;
+}
+
 export function hasSavedGithubToken(): boolean {
-  return Boolean(getTokenFromStorage());
+  return Boolean(getActiveToken());
+}
+
+export function isUsingEnvironmentGithubToken(): boolean {
+  return !getTokenFromStorage() && Boolean(DEFAULT_GITHUB_TOKEN);
 }
 
 export function saveGithubToken(token: string) {
@@ -81,7 +93,7 @@ export function validateGithubToken(token: string): { valid: boolean; message: s
 }
 
 async function request(path: string) {
-  const token = getTokenFromStorage();
+  const token = getActiveToken();
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
