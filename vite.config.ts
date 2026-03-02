@@ -13,4 +13,7 @@ const defaultBase = repositoryName ? `/${repositoryName}/` : '/';
 export default defineConfig({
   plugins: [vue()],
   base: normalizeBase(process.env.VITE_BASE_PATH ?? defaultBase),
+  define: {
+    __DEFAULT_GITHUB_TOKEN__: JSON.stringify((process.env.GITHUB_TOKEN ?? '').trim()),
+  },
 });

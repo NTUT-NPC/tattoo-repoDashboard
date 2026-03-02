@@ -236,6 +236,7 @@ import {
   fetchPrCards,
   fetchPullRequestMergeState,
   hasSavedGithubToken,
+  isUsingEnvironmentGithubToken,
   saveGithubToken,
   validateGithubToken,
   type PullRequestCard,
@@ -669,7 +670,9 @@ async function clearToken() {
   tokenInput.value = '';
   saveGithubToken('');
   hasTokenSaved.value = false;
-  tokenMessage.value = '已清除 token，後續改為匿名請求。';
+  tokenMessage.value = isUsingEnvironmentGithubToken()
+    ? '已清除 localStorage token，後續改用環境變數預設 token。'
+    : '已清除 token，後續改為匿名請求。';
   await refresh();
 }
 
@@ -832,7 +835,9 @@ onMounted(async () => {
 
   hasTokenSaved.value = hasSavedGithubToken();
   tokenMessage.value = hasTokenSaved.value
-    ? '偵測到已儲存 token（內容隱藏）。'
+    ? (isUsingEnvironmentGithubToken()
+      ? '偵測到環境變數預設 token（內容隱藏）。'
+      : '偵測到已儲存 token（內容隱藏）。')
     : '目前未設定 token，將使用匿名請求。';
 
   await refresh();

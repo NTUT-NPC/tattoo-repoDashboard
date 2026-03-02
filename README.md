@@ -99,9 +99,10 @@ GitHub Actions 使用：
 
 ## Token 使用提醒
 
-- Token 只存在 localStorage（key: `github_api_token`）。
+- 可透過環境變數 `GITHUB_TOKEN` 提供預設 token（例如：`GITHUB_TOKEN=xxx npm run dev`），客戶端會在 localStorage 無 token 時自動套用。
+- 手動儲存後仍以 localStorage（key: `github_api_token`）為優先。
 - 建議使用最小權限、短效、只讀 token。
-- 若不需要可在設定中清除回匿名模式。
+- 若不需要可在設定中清除 localStorage token；若同時有 `GITHUB_TOKEN`，會回到環境變數預設值。
 
 ## 完整 GitHub Token 申請教學（建議先看）
 
