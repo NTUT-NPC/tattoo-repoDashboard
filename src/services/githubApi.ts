@@ -6,6 +6,7 @@ export type PullRequestCard = {
   title: string;
   url: string;
   updatedAt: string;
+  branchName: string;
   author: { login: string; avatarUrl: string; url: string };
   latestCommit: {
     sha: string;
@@ -232,6 +233,7 @@ export async function fetchPrCards(): Promise<PullRequestCard[]> {
         title: pr.title,
         url: pr.html_url,
         updatedAt: pr.updated_at,
+        branchName: pr.head?.ref ?? 'unknown',
         author: {
           login: pr.user.login,
           avatarUrl: pr.user.avatar_url,
