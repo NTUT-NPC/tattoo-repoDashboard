@@ -42,6 +42,7 @@
         <span>{{ latestActivity.authorLogin }}</span>
       </div>
       <div class="line-item issue-pill" v-if="pr.linkedIssue">Issue #{{ pr.linkedIssue }}</div>
+      <div class="line-item branch-pill" :title="`Branch: ${pr.branchName}`">⎇ {{ pr.branchName }}</div>
       <div class="line-item dim">{{ formatDate(pr.updatedAt) }}</div>
     </div>
 
@@ -354,6 +355,11 @@ const statusClass = computed(() => {
 .type-icon { font-size:.72rem; line-height:1; }
 .line-item.dim { color:#94a3b8; }
 .issue-pill { color:#a5b4fc; border-color:#4856a1; }
+.branch-pill {
+  color: #bfdbfe;
+  border-color: #3b82f6;
+  background: #142647;
+}
 .avatar { width:16px; height:16px; border-radius:999px; border:1px solid #334155; }
 .bottom { display:flex; justify-content:flex-end; align-items:center; gap:.4rem; margin-top:auto; }
 .detail-panel { border-top:1px solid #233154; padding-top:.4rem; }
