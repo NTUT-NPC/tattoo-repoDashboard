@@ -840,7 +840,9 @@ function triggerPrStatusAnimation(params: {
   detailCiSummary.value = params.ciSummary ?? [];
   detailShowEffect.value = true;
   tokenMessage.value = params.message;
-  void playStatusAnimationSound();
+  if (params.effect === 'merged') {
+    void playStatusAnimationSound();
+  }
 
   previewCloseTimer = setTimeout(() => {
     closePrDetails();
