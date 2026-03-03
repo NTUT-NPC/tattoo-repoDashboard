@@ -153,6 +153,30 @@
               </p>
 
               <label class="token-label">動畫預覽</label>
+              <label class="token-label">動畫音效</label>
+              <div class="token-controls refresh-controls notification-controls">
+                <label class="toggle-control" for="status-sound-enabled">
+                  <input
+                    id="status-sound-enabled"
+                    v-model="statusAnimationSoundEnabled"
+                    type="checkbox"
+                    @change="applyStatusAnimationSoundEnabled"
+                  />
+                  <span>播放 PR 狀態更新音效（預設：cash.mp3）</span>
+                </label>
+              </div>
+              <div class="token-controls">
+                <input
+                  id="status-sound-upload"
+                  type="file"
+                  accept="audio/*"
+                  @change="uploadStatusAnimationSound"
+                />
+                <button type="button" class="secondary" @click="clearCustomStatusAnimationSound">恢復預設音效</button>
+                <button type="button" class="secondary" @click="previewStatusAnimationSound">試聽音效</button>
+              </div>
+              <p class="token-hint">目前音效：{{ statusAnimationSoundLabel }}</p>
+
               <div class="token-controls">
                 <button type="button" class="secondary" @click="previewLatestPrStatusAnimation">預覽最新 PR 狀態更新動畫</button>
               </div>
@@ -251,6 +275,11 @@ const ACTIVITY_DISPLAY_MODE_STORAGE_KEY = 'tattoo-dashboard-activity-display-mod
 const DATE_DISPLAY_MODE_STORAGE_KEY = 'tattoo-dashboard-date-display-mode';
 const DESKTOP_NOTIFICATION_STORAGE_KEY = 'tattoo-dashboard-desktop-notification-enabled';
 const SCREEN_WAKE_LOCK_STORAGE_KEY = 'tattoo-dashboard-screen-wake-lock-enabled';
+const STATUS_ANIMATION_SOUND_ENABLED_STORAGE_KEY = 'tattoo-dashboard-status-animation-sound-enabled';
+const STATUS_ANIMATION_SOUND_DATA_URL_STORAGE_KEY = 'tattoo-dashboard-status-animation-sound-data-url';
+const STATUS_ANIMATION_SOUND_NAME_STORAGE_KEY = 'tattoo-dashboard-status-animation-sound-name';
+const DEFAULT_STATUS_ANIMATION_SOUND_PATH = '/cash.mp3';
+const DEFAULT_STATUS_ANIMATION_SOUND_NAME = 'cash.mp3';
 const DEFAULT_STATUS_ANIMATION_CLOSE_DELAY_SEC = 8;
 const MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC = 3;
 const MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC = 20;
@@ -284,6 +313,9 @@ const activityDisplayMode = ref<ActivityDisplayMode>('separate');
 const dateDisplayMode = ref<DateDisplayMode>('smart');
 const desktopNotificationEnabled = ref(false);
 const screenWakeLockEnabled = ref(false);
+const statusAnimationSoundEnabled = ref(true);
+const customStatusAnimationSoundDataUrl = ref('');
+const customStatusAnimationSoundName = ref('');
 const detailEffect = ref<'new_pr' | 'ci_complete' | 'merged'>('ci_complete');
 const detailCiSummary = ref<Array<{ name: string; result: 'success' | 'failure' }>>([]);
 const detailShowEffect = ref(false);
@@ -292,6 +324,7 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null;
 let previewCloseTimer: ReturnType<typeof setTimeout> | null = null;
 let nextRefreshAt: number | null = null;
 let wakeLockSentinel: WakeLockSentinel | null = null;
+let statusAnimationAudio: HTMLAudioElement | null = null;
 
 let refreshInFlight: Promise<void> | null = null;
 let refreshQueued = false;
@@ -321,6 +354,8 @@ const wakeLockStatusText = computed(() => {
   if (!screenWakeLockEnabled.value) return '已關閉';
   return wakeLockSentinel ? '啟用中（螢幕保持喚醒）' : '啟用中（等待重新套用）';
 });
+const statusAnimationSoundUrl = computed(() => customStatusAnimationSoundDataUrl.value || DEFAULT_STATUS_ANIMATION_SOUND_PATH);
+const statusAnimationSoundLabel = computed(() => customStatusAnimationSoundName.value || DEFAULT_STATUS_ANIMATION_SOUND_NAME);
 
 function readRefreshIntervalFromStorage() {
   const raw = window.localStorage.getItem(REFRESH_INTERVAL_STORAGE_KEY);
@@ -349,6 +384,20 @@ function readDesktopNotificationSettingFromStorage() {
 
 function readScreenWakeLockSettingFromStorage() {
   return window.localStorage.getItem(SCREEN_WAKE_LOCK_STORAGE_KEY) === 'true';
+}
+
+function readStatusAnimationSoundEnabledFromStorage() {
+  const raw = window.localStorage.getItem(STATUS_ANIMATION_SOUND_ENABLED_STORAGE_KEY);
+  if (raw === null) return true;
+  return raw === 'true';
+}
+
+function readStatusAnimationSoundDataUrlFromStorage() {
+  return window.localStorage.getItem(STATUS_ANIMATION_SOUND_DATA_URL_STORAGE_KEY) ?? '';
+}
+
+function readStatusAnimationSoundNameFromStorage() {
+  return window.localStorage.getItem(STATUS_ANIMATION_SOUND_NAME_STORAGE_KEY) ?? '';
 }
 
 function readStatusAnimationCloseDelayFromStorage() {
@@ -508,6 +557,82 @@ async function applyScreenWakeLockSetting() {
   tokenMessage.value = screenWakeLockEnabled.value
     ? '已啟用防止螢幕關閉（支援時生效）。'
     : '已關閉防止螢幕關閉。';
+}
+
+function applyStatusAnimationSoundEnabled() {
+  window.localStorage.setItem(STATUS_ANIMATION_SOUND_ENABLED_STORAGE_KEY, String(statusAnimationSoundEnabled.value));
+  tokenMessage.value = statusAnimationSoundEnabled.value
+    ? '已啟用 PR 狀態更新音效。'
+    : '已關閉 PR 狀態更新音效。';
+}
+
+async function uploadStatusAnimationSound(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('audio/')) {
+    tokenMessage.value = '請選擇音訊檔案（audio/*）。';
+    input.value = '';
+    return;
+  }
+
+  const fileDataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(new Error('read-audio-file-failed'));
+    reader.readAsDataURL(file);
+  }).catch((readError) => {
+    console.warn('failed to read status animation sound file', readError);
+    return '';
+  });
+
+  if (!fileDataUrl) {
+    tokenMessage.value = '讀取音效檔案失敗，請重新上傳。';
+    input.value = '';
+    return;
+  }
+
+  customStatusAnimationSoundDataUrl.value = fileDataUrl;
+  customStatusAnimationSoundName.value = file.name;
+  window.localStorage.setItem(STATUS_ANIMATION_SOUND_DATA_URL_STORAGE_KEY, customStatusAnimationSoundDataUrl.value);
+  window.localStorage.setItem(STATUS_ANIMATION_SOUND_NAME_STORAGE_KEY, customStatusAnimationSoundName.value);
+  statusAnimationAudio = null;
+  tokenMessage.value = `已套用自訂音效：${file.name}`;
+  input.value = '';
+}
+
+function clearCustomStatusAnimationSound() {
+  customStatusAnimationSoundDataUrl.value = '';
+  customStatusAnimationSoundName.value = '';
+  window.localStorage.removeItem(STATUS_ANIMATION_SOUND_DATA_URL_STORAGE_KEY);
+  window.localStorage.removeItem(STATUS_ANIMATION_SOUND_NAME_STORAGE_KEY);
+  statusAnimationAudio = null;
+  tokenMessage.value = '已恢復預設音效 cash.mp3。';
+}
+
+async function playStatusAnimationSound() {
+  if (!statusAnimationSoundEnabled.value) return;
+
+  const soundUrl = statusAnimationSoundUrl.value;
+  if (!soundUrl) return;
+
+  if (!statusAnimationAudio || statusAnimationAudio.src !== new URL(soundUrl, window.location.href).href) {
+    statusAnimationAudio = new Audio(soundUrl);
+    statusAnimationAudio.preload = 'auto';
+  }
+
+  statusAnimationAudio.currentTime = 0;
+  try {
+    await statusAnimationAudio.play();
+  } catch (playError) {
+    console.warn('failed to play status animation sound', playError);
+  }
+}
+
+function previewStatusAnimationSound() {
+  void playStatusAnimationSound();
+  tokenMessage.value = `已嘗試播放音效：${statusAnimationSoundLabel.value}`;
 }
 
 function handleVisibilityChange() {
@@ -715,6 +840,7 @@ function triggerPrStatusAnimation(params: {
   detailCiSummary.value = params.ciSummary ?? [];
   detailShowEffect.value = true;
   tokenMessage.value = params.message;
+  void playStatusAnimationSound();
 
   previewCloseTimer = setTimeout(() => {
     closePrDetails();
@@ -827,6 +953,9 @@ onMounted(async () => {
   dateDisplayMode.value = readDateDisplayModeFromStorage();
   desktopNotificationEnabled.value = readDesktopNotificationSettingFromStorage();
   screenWakeLockEnabled.value = readScreenWakeLockSettingFromStorage();
+  statusAnimationSoundEnabled.value = readStatusAnimationSoundEnabledFromStorage();
+  customStatusAnimationSoundDataUrl.value = readStatusAnimationSoundDataUrlFromStorage();
+  customStatusAnimationSoundName.value = readStatusAnimationSoundNameFromStorage();
   refreshIntervalSec.value = readRefreshIntervalFromStorage();
   refreshIntervalInput.value = refreshIntervalSec.value;
   statusAnimationCloseDelaySec.value = readStatusAnimationCloseDelayFromStorage();
