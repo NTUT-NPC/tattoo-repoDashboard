@@ -4,12 +4,12 @@
       <div class="header-main">
         <h1>
           <img class="header-logo" src="/logo.svg" alt="Tattoo logo" />
-          <span>Tattoo PR Dashboard</span>
+          <span>{{ t('app.title') }}</span>
         </h1>
-        <p><code>NTUT-NPC/tattoo</code> · {{ refreshIntervalSec }}s refresh</p>
+        <p><code>NTUT-NPC/tattoo</code> · {{ t('header.refreshSuffix', { sec: refreshIntervalSec }) }}</p>
       </div>
       <div class="meta" role="status" aria-live="polite">
-        <span class="refresh-ring" aria-label="下次更新倒數">
+        <span class="refresh-ring" :aria-label="t('header.nextRefreshCountdown')">
           <svg viewBox="0 0 40 40" aria-hidden="true">
             <circle class="refresh-ring-track" cx="20" cy="20" r="16" />
             <circle
@@ -22,15 +22,15 @@
           </svg>
           <span class="refresh-ring-number">{{ refreshCountdownSec }}</span>
         </span>
-        <span :class="['chip', isUpdating ? 'updating' : 'ok']">{{ isUpdating ? '更新中' : '已同步' }}</span>
+        <span :class="['chip', isUpdating ? 'updating' : 'ok']">{{ isUpdating ? t('header.updating') : t('header.synced') }}</span>
         <span class="token-state meta-pill" :class="{ active: hasTokenSaved }">
-          {{ hasTokenSaved ? 'Token ON' : '匿名' }}
+          {{ hasTokenSaved ? t('header.tokenOn') : t('header.anonymous') }}
         </span>
         <span class="time meta-pill">{{ lastUpdatedText }}</span>
         <button
           type="button"
           class="settings-btn meta-pill"
-          :aria-label="showTokenPanel ? '關閉 Token 設定' : '開啟 Token 設定'"
+          :aria-label="showTokenPanel ? t('aria.closeSettings') : t('aria.openSettings')"
           @click="showTokenPanel = !showTokenPanel"
         >
           ⚙
@@ -60,22 +60,31 @@
           aria-live="polite"
           @click="handleSettingsMaskClick"
         >
-          <div class="settings-card" role="dialog" aria-modal="true" aria-label="設定">
+          <div class="settings-card" role="dialog" aria-modal="true" :aria-label="t('aria.settingsDialog')">
             <div class="settings-toolbar">
-              <h2>設定</h2>
-              <button type="button" class="close-btn" aria-label="關閉設定" @click="showTokenPanel = false">✕</button>
+              <h2>{{ t('settings.title') }}</h2>
+              <button type="button" class="close-btn" :aria-label="t('aria.closeSettingsDialog')" @click="showTokenPanel = false">✕</button>
             </div>
             <div class="settings-content">
-              <label for="activity-display-mode" class="token-label">動態顯示模式</label>
+              <label for="language-mode" class="token-label">{{ t('settings.language') }}</label>
               <div class="token-controls refresh-controls">
-                <select id="activity-display-mode" v-model="activityDisplayMode" @change="applyActivityDisplayMode">
-                  <option value="separate">分開顯示最新提交與最新留言（目前）</option>
-                  <option value="latest">只顯示提交/留言之中最新的一筆</option>
+                <select id="language-mode" v-model="languageMode" @change="applyLanguageMode">
+                  <option value="auto">{{ t('settings.language.auto') }}</option>
+                  <option value="zh">{{ t('settings.language.zh') }}</option>
+                  <option value="en">{{ t('settings.language.en') }}</option>
                 </select>
               </div>
-              <p class="token-hint">可切換為僅顯示「最新動態（提交或留言）」。</p>
 
-              <label class="token-label">桌面通知</label>
+              <label for="activity-display-mode" class="token-label">{{ t('settings.activityDisplayMode') }}</label>
+              <div class="token-controls refresh-controls">
+                <select id="activity-display-mode" v-model="activityDisplayMode" @change="applyActivityDisplayMode">
+                  <option value="separate">{{ t('settings.activityMode.separate') }}</option>
+                  <option value="latest">{{ t('settings.activityMode.latest') }}</option>
+                </select>
+              </div>
+              <p class="token-hint">{{ t('settings.activityHint') }}</p>
+
+              <label class="token-label">{{ t('settings.desktopNotification') }}</label>
               <div class="token-controls refresh-controls notification-controls">
                 <label class="toggle-control" for="desktop-notification-enabled">
                   <input
@@ -84,14 +93,14 @@
                     type="checkbox"
                     @change="applyDesktopNotificationSetting"
                   />
-                  <span>啟用 PR 狀態變更桌面通知</span>
+                  <span>{{ t('settings.desktopNotification.toggle') }}</span>
                 </label>
-                <button type="button" class="secondary" @click="requestDesktopNotificationPermission">請求通知權限</button>
+                <button type="button" class="secondary" @click="requestDesktopNotificationPermission">{{ t('settings.desktopNotification.requestPermission') }}</button>
               </div>
-              <p class="token-hint">權限狀態：{{ desktopNotificationPermissionText }}</p>
-              <p class="token-hint">當 PR 的 review/CI 狀態變更時，會發送桌面通知。</p>
+              <p class="token-hint">{{ t('settings.desktopNotification.permissionState', { state: desktopNotificationPermissionText }) }}</p>
+              <p class="token-hint">{{ t('settings.desktopNotification.hint') }}</p>
 
-              <label class="token-label">避免螢幕關閉</label>
+              <label class="token-label">{{ t('settings.wakeLock') }}</label>
               <div class="token-controls refresh-controls notification-controls">
                 <label class="toggle-control" for="screen-wake-lock-enabled">
                   <input
@@ -101,22 +110,22 @@
                     :disabled="!isWakeLockSupported"
                     @change="applyScreenWakeLockSetting"
                   />
-                  <span>啟用後在此分頁保持前景時嘗試防止螢幕關閉</span>
+                  <span>{{ t('settings.wakeLock.toggle') }}</span>
                 </label>
               </div>
-              <p class="token-hint">狀態：{{ wakeLockStatusText }}</p>
-              <p class="token-hint">此功能依賴瀏覽器 Wake Lock API，切換分頁或系統策略可能會解除。</p>
+              <p class="token-hint">{{ t('settings.wakeLock.status', { state: wakeLockStatusText }) }}</p>
+              <p class="token-hint">{{ t('settings.wakeLock.hint') }}</p>
 
-              <label for="date-display-mode" class="token-label">更新時間顯示</label>
+              <label for="date-display-mode" class="token-label">{{ t('settings.dateDisplayMode') }}</label>
               <div class="token-controls refresh-controls">
                 <select id="date-display-mode" v-model="dateDisplayMode" @change="applyDateDisplayMode">
-                  <option value="smart">智慧時間（分鐘前 / 今天時間 / 幾天前 / 日期）</option>
-                  <option value="full">完整時間（目前樣式）</option>
+                  <option value="smart">{{ t('settings.dateMode.smart') }}</option>
+                  <option value="full">{{ t('settings.dateMode.full') }}</option>
                 </select>
               </div>
-              <p class="token-hint">預設為智慧時間，可切換回完整日期時間。</p>
+              <p class="token-hint">{{ t('settings.dateHint') }}</p>
 
-              <label for="refresh-interval" class="token-label">更新頻率（秒）</label>
+              <label for="refresh-interval" class="token-label">{{ t('settings.refreshInterval') }}</label>
               <div class="token-controls refresh-controls">
                 <input
                   id="refresh-interval"
@@ -126,37 +135,37 @@
                   :max="MAX_REFRESH_INTERVAL_SEC"
                   step="1"
                 />
-                <button type="button" @click="applyRefreshInterval">套用更新頻率</button>
+                <button type="button" @click="applyRefreshInterval">{{ t('settings.refreshInterval.apply') }}</button>
               </div>
-              <p class="token-hint">可設定 {{ MIN_REFRESH_INTERVAL_SEC }} - {{ MAX_REFRESH_INTERVAL_SEC }} 秒。</p>
+              <p class="token-hint">{{ t('settings.refreshInterval.range', { min: MIN_REFRESH_INTERVAL_SEC, max: MAX_REFRESH_INTERVAL_SEC }) }}</p>
 
-              <label for="github-token" class="token-label">GitHub API Token（選填）</label>
+              <label for="github-token" class="token-label">{{ t('settings.githubToken') }}</label>
               <div class="token-controls">
                 <input
                   id="github-token"
                   v-model="tokenInput"
                   type="password"
-                  placeholder="貼上新 token（不會自動回填已儲存值）"
+                  :placeholder="t('settings.githubToken.placeholder')"
                   autocomplete="off"
                   spellcheck="false"
                 />
-                <button type="button" @click="saveToken">儲存 Token</button>
-                <button type="button" class="secondary" @click="clearToken">清除</button>
+                <button type="button" @click="saveToken">{{ t('settings.githubToken.save') }}</button>
+                <button type="button" class="secondary" @click="clearToken">{{ t('settings.githubToken.clear') }}</button>
               </div>
               <p class="token-hint">{{ tokenMessage }}</p>
               <p class="token-hint">
-                不知道怎麼建立 Token？可參考
+                {{ t('settings.githubToken.howtoPrefix') }}
                 <a href="https://github.com/NTUT-NPC/tattoo-repoDashboard#%E5%AE%8C%E6%95%B4-github-token-%E7%94%B3%E8%AB%8B%E6%95%99%E5%AD%B8%E5%BB%BA%E8%AD%B0%E5%85%88%E7%9C%8B" target="_blank" rel="noreferrer noopener">
-                  README 教學
+                  {{ t('settings.githubToken.readmeLink') }}
                 </a>
-                。
+                {{ t('settings.githubToken.howtoSuffix') }}
               </p>
 
-              <label class="token-label">動畫預覽</label>
+              <label class="token-label">{{ t('settings.animationPreview') }}</label>
               <div class="token-controls">
-                <button type="button" class="secondary" @click="previewLatestPrStatusAnimation">預覽最新 PR 狀態更新動畫</button>
+                <button type="button" class="secondary" @click="previewLatestPrStatusAnimation">{{ t('settings.animationPreview.button') }}</button>
               </div>
-              <label for="status-animation-close-delay" class="token-label">PR 狀態動畫自動關閉（秒）</label>
+              <label for="status-animation-close-delay" class="token-label">{{ t('settings.statusAnimationCloseDelay') }}</label>
               <div class="token-controls refresh-controls">
                 <input
                   id="status-animation-close-delay"
@@ -166,12 +175,12 @@
                   :max="MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC"
                   step="1"
                 />
-                <button type="button" @click="applyStatusAnimationCloseDelay">套用</button>
+                <button type="button" @click="applyStatusAnimationCloseDelay">{{ t('settings.apply') }}</button>
               </div>
-              <p class="token-hint">可設定 {{ MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC }} - {{ MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC }} 秒（預設 {{ DEFAULT_STATUS_ANIMATION_CLOSE_DELAY_SEC }} 秒）。</p>
-              <p class="token-hint">使用目前最新 PR 模擬一次狀態更新動畫。</p>
+              <p class="token-hint">{{ t('settings.statusAnimationCloseDelay.range', { min: MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC, max: MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC, def: DEFAULT_STATUS_ANIMATION_CLOSE_DELAY_SEC }) }}</p>
+              <p class="token-hint">{{ t('settings.statusAnimationCloseDelay.hint') }}</p>
               <p class="token-hint">
-                專案 Repo：
+                {{ t('settings.projectRepo') }}
                 <a href="https://github.com/NTUT-NPC/tattoo-repoDashboard" target="_blank" rel="noreferrer noopener">
                   github.com/NTUT-NPC/tattoo-repoDashboard
                 </a>
@@ -188,15 +197,15 @@
           aria-live="polite"
           @click="handleOnboardingMaskClick"
         >
-          <div class="settings-card onboarding-card" role="dialog" aria-modal="true" aria-label="初次使用提示">
+          <div class="settings-card onboarding-card" role="dialog" aria-modal="true" :aria-label="t('onboarding.title')">
             <div class="settings-toolbar">
-              <h2>歡迎使用 Tattoo PR Dashboard</h2>
+              <h2>{{ t('onboarding.title') }}</h2>
             </div>
             <div class="settings-content">
-              <p class="token-hint">你可以先用匿名模式快速瀏覽，也可以先在設定填入 GitHub API Token，避免匿名模式遇到連線限制。</p>
+              <p class="token-hint">{{ t('onboarding.body') }}</p>
               <div class="token-controls">
-                <button type="button" class="secondary" @click="continueWithAnonymousMode">使用匿名模式</button>
-                <button type="button" @click="openSettingsFromOnboarding">前往填入 API 金鑰</button>
+                <button type="button" class="secondary" @click="continueWithAnonymousMode">{{ t('onboarding.anonymous') }}</button>
+                <button type="button" @click="openSettingsFromOnboarding">{{ t('onboarding.goToSettings') }}</button>
               </div>
             </div>
           </div>
@@ -212,7 +221,7 @@
         >
           <div class="detail-card-wrap">
             <div class="detail-toolbar">
-              <button type="button" class="close-btn" aria-label="關閉詳細資訊" @click="closePrDetails">✕</button>
+              <button type="button" class="close-btn" :aria-label="t('aria.closeDetails')" @click="closePrDetails">✕</button>
             </div>
             <PrCard
               :pr="selectedPr"
@@ -241,6 +250,7 @@ import {
   validateGithubToken,
   type PullRequestCard,
 } from '../services/githubApi.ts';
+import { useI18n, type MessageKey } from '../services/i18n.ts';
 
 const REFRESH_INTERVAL_MS = 30_000;
 const DEFAULT_REFRESH_INTERVAL_SEC = REFRESH_INTERVAL_MS / 1000;
@@ -265,15 +275,23 @@ type NavigatorWithWakeLock = Navigator & {
   };
 };
 
+const { t, intlLocale, resolvedLocale, languageMode, setLanguageMode } = useI18n();
+
 const prs = ref<PullRequestCard[]>([]);
 const selectedPr = ref<PullRequestCard | null>(null);
-const error = ref('');
+const errorKey = ref<MessageKey | ''>('');
 const isUpdating = ref(false);
 const lastUpdatedAt = ref<Date | null>(null);
 const showTokenPanel = ref(false);
 const hasTokenSaved = ref(false);
 const tokenInput = ref('');
-const tokenMessage = ref('目前未設定 token，將使用匿名請求。');
+const tokenMessageState = ref<
+  | { type: 'key'; key: MessageKey; params?: Record<string, string | number> }
+  | { type: 'text'; text: string }
+>({
+  type: 'key',
+  key: 'message.token.anonymous',
+});
 const showOnboardingModal = ref(false);
 const refreshIntervalSec = ref(DEFAULT_REFRESH_INTERVAL_SEC);
 const refreshIntervalInput = ref(DEFAULT_REFRESH_INTERVAL_SEC);
@@ -297,9 +315,23 @@ let refreshInFlight: Promise<void> | null = null;
 let refreshQueued = false;
 let isFirstRefresh = true;
 
-const lastUpdatedText = computed(() =>
-  lastUpdatedAt.value ? `最後更新：${lastUpdatedAt.value.toLocaleString()}` : '尚未更新',
-);
+function setTokenMessage(key: MessageKey, params?: Record<string, string | number>) {
+  tokenMessageState.value = { type: 'key', key, params };
+}
+
+function setTokenMessageText(text: string) {
+  tokenMessageState.value = { type: 'text', text };
+}
+
+const tokenMessage = computed(() => {
+  if (tokenMessageState.value.type === 'text') return tokenMessageState.value.text;
+  return t(tokenMessageState.value.key, tokenMessageState.value.params);
+});
+const error = computed(() => (errorKey.value ? t(errorKey.value as MessageKey) : ''));
+const lastUpdatedText = computed(() => {
+  if (!lastUpdatedAt.value) return t('header.notUpdatedYet');
+  return t('header.lastUpdated', { time: lastUpdatedAt.value.toLocaleString(intlLocale.value) });
+});
 const refreshRingDashOffset = computed(() => {
   const radius = 16;
   const circumference = 2 * Math.PI * radius;
@@ -309,18 +341,23 @@ const refreshRingDashOffset = computed(() => {
   return circumference * (1 - progress);
 });
 const desktopNotificationPermissionText = computed(() => {
-  if (!('Notification' in window)) return '目前瀏覽器不支援通知 API';
+  if (!('Notification' in window)) return t('notification.permission.unsupported');
 
-  if (Notification.permission === 'granted') return '已允許';
-  if (Notification.permission === 'denied') return '已封鎖（請至瀏覽器設定開啟）';
-  return '尚未授權';
+  if (Notification.permission === 'granted') return t('notification.permission.granted');
+  if (Notification.permission === 'denied') return t('notification.permission.denied');
+  return t('notification.permission.default');
 });
 const isWakeLockSupported = computed(() => Boolean((navigator as NavigatorWithWakeLock).wakeLock));
 const wakeLockStatusText = computed(() => {
-  if (!isWakeLockSupported.value) return '目前瀏覽器不支援 Wake Lock API';
-  if (!screenWakeLockEnabled.value) return '已關閉';
-  return wakeLockSentinel ? '啟用中（螢幕保持喚醒）' : '啟用中（等待重新套用）';
+  if (!isWakeLockSupported.value) return t('wakeLock.unsupported');
+  if (!screenWakeLockEnabled.value) return t('wakeLock.off');
+  return wakeLockSentinel ? t('wakeLock.onActive') : t('wakeLock.onPending');
 });
+
+function applyLanguageMode() {
+  setLanguageMode(languageMode.value);
+  setTokenMessage('message.languageApplied');
+}
 
 function readRefreshIntervalFromStorage() {
   const raw = window.localStorage.getItem(REFRESH_INTERVAL_STORAGE_KEY);
@@ -364,18 +401,12 @@ function readStatusAnimationCloseDelayFromStorage() {
 
 function applyActivityDisplayMode() {
   window.localStorage.setItem(ACTIVITY_DISPLAY_MODE_STORAGE_KEY, activityDisplayMode.value);
-  tokenMessage.value =
-    activityDisplayMode.value === 'latest'
-      ? '已切換為僅顯示提交/留言中最新的一筆。'
-      : '已切換為分開顯示最新提交與最新留言。';
+  setTokenMessage(activityDisplayMode.value === 'latest' ? 'message.activity.latest' : 'message.activity.separate');
 }
 
 function applyDateDisplayMode() {
   window.localStorage.setItem(DATE_DISPLAY_MODE_STORAGE_KEY, dateDisplayMode.value);
-  tokenMessage.value =
-    dateDisplayMode.value === 'full'
-      ? '已切換為完整日期時間顯示。'
-      : '已切換為智慧時間顯示。';
+  setTokenMessage(dateDisplayMode.value === 'full' ? 'message.date.full' : 'message.date.smart');
 }
 
 function scheduleNextRefreshCountdown() {
@@ -391,12 +422,26 @@ function getStatusSignature(pr: PullRequestCard) {
   return `${pr.reviewStatus ?? 'none'}__${pr.approvedCount}__${ciSignature}`;
 }
 
-function getPrStatusDescription(pr: PullRequestCard) {
-  const ciDescription = pr.ciStates.length
-    ? pr.ciStates.map((state) => `${state.name}=${state.conclusion ?? state.status}`).join('、')
-    : '無 CI 資訊';
+function formatReviewStatus(status: PullRequestCard['reviewStatus']): string {
+  if (!status) return 'none';
+  if (status === 'draft') return t('prCard.status.draft');
+  if (status === 'pending review') return t('prCard.status.pendingReview');
+  if (status === 'ci failed') return t('prCard.status.ciFailed');
+  if (status === 'approved') return t('prCard.status.approvedPlain');
+  return status;
+}
 
-  return `Review：${pr.reviewStatus ?? 'none'}；Approved：${pr.approvedCount}；CI：${ciDescription}`;
+function getPrStatusDescription(pr: PullRequestCard) {
+  const joiner = resolvedLocale.value === 'zh' ? '、' : ', ';
+  const ciDescription = pr.ciStates.length
+    ? pr.ciStates.map((state) => `${state.name}=${state.conclusion ?? state.status}`).join(joiner)
+    : t('ci.none');
+
+  return t('desktopNotification.body', {
+    review: formatReviewStatus(pr.reviewStatus),
+    approved: pr.approvedCount,
+    ci: ciDescription,
+  });
 }
 
 function notifyPrStatusChanges(previousPrs: PullRequestCard[], currentPrs: PullRequestCard[]) {
@@ -414,7 +459,7 @@ function notifyPrStatusChanges(previousPrs: PullRequestCard[], currentPrs: PullR
   });
 
   changedPrs.forEach((pr) => {
-    const notification = new Notification(`PR #${pr.number} 狀態更新`, {
+    const notification = new Notification(t('desktopNotification.title', { number: pr.number }), {
       body: getPrStatusDescription(pr),
       icon: '/favicon.svg',
       tag: `tattoo-pr-${pr.id}`,
@@ -429,38 +474,36 @@ function notifyPrStatusChanges(previousPrs: PullRequestCard[], currentPrs: PullR
 
 async function requestDesktopNotificationPermission() {
   if (!('Notification' in window)) {
-    tokenMessage.value = '目前瀏覽器不支援桌面通知。';
+    setTokenMessage('message.notification.unsupported');
     return;
   }
 
   const permission = await Notification.requestPermission();
   if (permission === 'granted') {
-    tokenMessage.value = '已允許桌面通知。';
+    setTokenMessage('message.notification.granted');
     return;
   }
 
-  tokenMessage.value = permission === 'denied'
-    ? '通知權限已被封鎖，請至瀏覽器設定調整。'
-    : '尚未授權桌面通知。';
+  setTokenMessage(permission === 'denied' ? 'message.notification.denied' : 'message.notification.default');
 }
 
 async function applyDesktopNotificationSetting() {
   window.localStorage.setItem(DESKTOP_NOTIFICATION_STORAGE_KEY, String(desktopNotificationEnabled.value));
 
   if (!desktopNotificationEnabled.value) {
-    tokenMessage.value = '已關閉 PR 狀態變更桌面通知。';
+    setTokenMessage('message.notification.disabled');
     return;
   }
 
   await requestDesktopNotificationPermission();
   if ('Notification' in window && Notification.permission === 'granted') {
-    tokenMessage.value = '已開啟 PR 狀態變更桌面通知。';
+    setTokenMessage('message.notification.enabled');
   }
 }
 
 async function requestScreenWakeLock() {
   if (!isWakeLockSupported.value) {
-    tokenMessage.value = '目前瀏覽器不支援防止螢幕關閉功能。';
+    setTokenMessage('message.wakeLock.unsupported');
     return;
   }
 
@@ -477,7 +520,7 @@ async function requestScreenWakeLock() {
     }
   } catch (wakeLockError) {
     console.warn('failed to acquire wake lock', wakeLockError);
-    tokenMessage.value = '無法啟用防止螢幕關閉，請確認瀏覽器權限與分頁狀態。';
+    setTokenMessage('message.wakeLock.failed');
   }
 }
 
@@ -505,9 +548,7 @@ async function syncScreenWakeLock() {
 async function applyScreenWakeLockSetting() {
   window.localStorage.setItem(SCREEN_WAKE_LOCK_STORAGE_KEY, String(screenWakeLockEnabled.value));
   await syncScreenWakeLock();
-  tokenMessage.value = screenWakeLockEnabled.value
-    ? '已啟用防止螢幕關閉（支援時生效）。'
-    : '已關閉防止螢幕關閉。';
+  setTokenMessage(screenWakeLockEnabled.value ? 'message.wakeLock.enabled' : 'message.wakeLock.disabled');
 }
 
 function handleVisibilityChange() {
@@ -554,7 +595,7 @@ async function executeRefreshCycle() {
 
     isFirstRefresh = false;
     lastUpdatedAt.value = new Date();
-    error.value = '';
+    errorKey.value = '';
 
     if (selectedPr.value) {
       const latest = prs.value.find((item) => item.id === selectedPr.value?.id) ?? null;
@@ -562,9 +603,7 @@ async function executeRefreshCycle() {
     }
   } catch (e) {
     console.error(e);
-    error.value = hasTokenSaved.value
-      ? '資料更新失敗，先顯示上一版資料。請稍後再試。'
-      : '匿名模式連線失敗。請到設定中申請並填入 GitHub API 金鑰後再試一次。';
+    errorKey.value = hasTokenSaved.value ? 'error.refreshFailedWithToken' : 'error.refreshFailedAnonymous';
   } finally {
     isUpdating.value = false;
   }
@@ -655,14 +694,14 @@ function handleEscape(event: KeyboardEvent) {
 async function saveToken() {
   const validation = validateGithubToken(tokenInput.value);
   if (!validation.valid) {
-    tokenMessage.value = validation.message;
+    setTokenMessage(validation.reason === 'empty' ? 'message.token.empty' : 'message.token.invalidFormat');
     return;
   }
 
   saveGithubToken(tokenInput.value);
   tokenInput.value = '';
   hasTokenSaved.value = hasSavedGithubToken();
-  tokenMessage.value = '已儲存 token 至 localStorage，後續請求會使用此 token。';
+  setTokenMessage('message.token.saved');
   await refresh();
 }
 
@@ -670,9 +709,7 @@ async function clearToken() {
   tokenInput.value = '';
   saveGithubToken('');
   hasTokenSaved.value = false;
-  tokenMessage.value = isUsingEnvironmentGithubToken()
-    ? '已清除 localStorage token，後續改用環境變數預設 token。'
-    : '已清除 token，後續改為匿名請求。';
+  setTokenMessage(isUsingEnvironmentGithubToken() ? 'message.token.clearedToEnv' : 'message.token.clearedAnonymous');
   await refresh();
 }
 
@@ -714,7 +751,7 @@ function triggerPrStatusAnimation(params: {
   detailEffect.value = params.effect;
   detailCiSummary.value = params.ciSummary ?? [];
   detailShowEffect.value = true;
-  tokenMessage.value = params.message;
+  setTokenMessageText(params.message);
 
   previewCloseTimer = setTimeout(() => {
     closePrDetails();
@@ -732,7 +769,7 @@ async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentP
     return {
       pr: newPr,
       effect: 'new_pr' as const,
-      message: `偵測到新 PR #${newPr.number}，已觸發全螢幕動畫。`,
+      message: t('message.animation.newPr', { number: newPr.number }),
     };
   }
 
@@ -745,7 +782,7 @@ async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentP
         pr,
         effect: 'ci_complete' as const,
         ciSummary: buildCiSummary(pr),
-        message: `PR #${pr.number} 的 CI 全部完成，已觸發全螢幕動畫。`,
+        message: t('message.animation.ciComplete', { number: pr.number }),
       };
     }
   }
@@ -760,7 +797,7 @@ async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentP
         return {
           pr: removedPr,
           effect: 'merged' as const,
-          message: `PR #${removedPr.number} 已合併，已觸發全螢幕動畫。`,
+          message: t('message.animation.merged', { number: removedPr.number }),
         };
       }
     } catch (mergeError) {
@@ -774,7 +811,7 @@ async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentP
 function previewLatestPrStatusAnimation() {
   const latestPr = prs.value[0];
   if (!latestPr) {
-    tokenMessage.value = '目前沒有可預覽的 PR。';
+    setTokenMessage('message.preview.noPr');
     return;
   }
 
@@ -782,13 +819,13 @@ function previewLatestPrStatusAnimation() {
     pr: latestPr,
     effect: 'ci_complete',
     ciSummary: buildCiSummary(latestPr),
-    message: `已預覽 PR #${latestPr.number} 狀態更新動畫。`,
+    message: t('message.preview.done', { number: latestPr.number }),
   });
 }
 
 function applyStatusAnimationCloseDelay() {
   if (!Number.isInteger(statusAnimationCloseDelayInputSec.value)) {
-    tokenMessage.value = 'PR 狀態動畫自動關閉需為整數秒。';
+    setTokenMessage('message.statusAnimation.closeDelayInteger');
     return;
   }
 
@@ -796,30 +833,33 @@ function applyStatusAnimationCloseDelay() {
     statusAnimationCloseDelayInputSec.value < MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC
     || statusAnimationCloseDelayInputSec.value > MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC
   ) {
-    tokenMessage.value = `PR 狀態動畫自動關閉需介於 ${MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC}-${MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC} 秒。`;
+    setTokenMessage('message.statusAnimation.closeDelayRange', {
+      min: MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC,
+      max: MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC,
+    });
     return;
   }
 
   statusAnimationCloseDelaySec.value = statusAnimationCloseDelayInputSec.value;
   window.localStorage.setItem(STATUS_ANIMATION_CLOSE_DELAY_STORAGE_KEY, String(statusAnimationCloseDelaySec.value));
-  tokenMessage.value = `已套用 PR 狀態動畫自動關閉：${statusAnimationCloseDelaySec.value} 秒。`;
+  setTokenMessage('message.statusAnimation.closeDelayApplied', { sec: statusAnimationCloseDelaySec.value });
 }
 
 function applyRefreshInterval() {
   if (!Number.isInteger(refreshIntervalInput.value)) {
-    tokenMessage.value = '更新頻率需為整數秒。';
+    setTokenMessage('message.refreshInterval.integer');
     return;
   }
 
   if (refreshIntervalInput.value < MIN_REFRESH_INTERVAL_SEC || refreshIntervalInput.value > MAX_REFRESH_INTERVAL_SEC) {
-    tokenMessage.value = `更新頻率需介於 ${MIN_REFRESH_INTERVAL_SEC}-${MAX_REFRESH_INTERVAL_SEC} 秒。`;
+    setTokenMessage('message.refreshInterval.range', { min: MIN_REFRESH_INTERVAL_SEC, max: MAX_REFRESH_INTERVAL_SEC });
     return;
   }
 
   refreshIntervalSec.value = refreshIntervalInput.value;
   window.localStorage.setItem(REFRESH_INTERVAL_STORAGE_KEY, String(refreshIntervalSec.value));
   restartRefreshTimer();
-  tokenMessage.value = `已套用更新頻率：每 ${refreshIntervalSec.value} 秒更新一次。`;
+  setTokenMessage('message.refreshInterval.applied', { sec: refreshIntervalSec.value });
 }
 
 onMounted(async () => {
@@ -834,11 +874,11 @@ onMounted(async () => {
   showOnboardingModal.value = window.localStorage.getItem(ONBOARDING_DISMISSED_STORAGE_KEY) !== 'true';
 
   hasTokenSaved.value = hasSavedGithubToken();
-  tokenMessage.value = hasTokenSaved.value
-    ? (isUsingEnvironmentGithubToken()
-      ? '偵測到環境變數預設 token（內容隱藏）。'
-      : '偵測到已儲存 token（內容隱藏）。')
-    : '目前未設定 token，將使用匿名請求。';
+  setTokenMessage(
+    hasTokenSaved.value
+      ? (isUsingEnvironmentGithubToken() ? 'message.token.detectedEnv' : 'message.token.detectedSaved')
+      : 'message.token.anonymous',
+  );
 
   await refresh();
   restartRefreshTimer();

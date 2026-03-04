@@ -7,7 +7,9 @@
         </div>
         <span v-if="statusLabel" class="review-status" :class="statusClass">{{ statusLabel }}</span>
       </div>
-      <span class="build" :class="{ missing: !pr.buildNumber }">CI #{{ pr.buildNumber ?? 'N/A' }}</span>
+      <span class="build" :class="{ missing: !pr.buildNumber }">
+        {{ t('prCard.ciBuild', { build: pr.buildNumber ?? t('prCard.ciBuild.na') }) }}
+      </span>
     </header>
 
     <h2 class="title" :title="pr.title">
@@ -20,7 +22,7 @@
         target="_blank"
         rel="noreferrer"
         class="line-item"
-        :title="`Owner: ${pr.author.login}`"
+        :title="t('prCard.ownerTitle', { owner: pr.author.login })"
       >
         <span class="type-icon" aria-hidden="true">👤</span>
         <img :src="pr.author.avatarUrl" :alt="pr.author.login" class="avatar" />
@@ -41,8 +43,8 @@
         <img :src="latestActivity.authorAvatarUrl" :alt="latestActivity.authorLogin" class="avatar" />
         <span>{{ latestActivity.authorLogin }}</span>
       </div>
-      <div class="line-item issue-pill" v-if="pr.linkedIssue">Issue #{{ pr.linkedIssue }}</div>
-      <div class="line-item branch-pill" :title="`Branch: ${pr.branchName}`">⎇ {{ pr.branchName }}</div>
+      <div class="line-item issue-pill" v-if="pr.linkedIssue">{{ t('prCard.issue', { issue: pr.linkedIssue }) }}</div>
+      <div class="line-item branch-pill" :title="t('prCard.branchTitle', { branch: pr.branchName })">⎇ {{ pr.branchName }}</div>
       <div class="line-item dim">{{ formatDate(pr.updatedAt) }}</div>
     </div>
 
@@ -51,9 +53,9 @@
     </section>
 
     <section v-if="cinematic" class="detail-panel">
-      <h3 class="detail-heading">更多細節</h3>
+      <h3 class="detail-heading">{{ t('prCard.details') }}</h3>
       <div class="detail-content">
-        <p class="detail-text">更新時間：{{ formatDate(pr.updatedAt) }}</p>
+        <p class="detail-text">{{ t('prCard.updatedAt', { time: formatDate(pr.updatedAt) }) }}</p>
         <a
           v-if="activityDisplayMode === 'separate' && pr.latestCommit"
           :href="pr.latestCommit.url"
@@ -62,7 +64,7 @@
           class="detail-link"
           :title="pr.latestCommit.message"
         >
-          最新 commit：{{ pr.latestCommit.message }}
+          {{ t('prCard.latestCommit', { message: pr.latestCommit.message }) }}
         </a>
         <a
           v-if="activityDisplayMode === 'separate' && pr.latestComment"
@@ -72,7 +74,7 @@
           class="detail-link"
           :title="pr.latestComment.body"
         >
-          最新留言：{{ truncate(pr.latestComment.body.replace(/\n/g, ' '), 200) }}
+          {{ t('prCard.latestComment', { message: truncate(pr.latestComment.body.replace(/\n/g, ' '), 200) }) }}
         </a>
         <a
           v-if="activityDisplayMode === 'latest' && latestActivity"
@@ -82,8 +84,12 @@
           class="detail-link"
           :title="latestActivity.preview"
         >
-          最新動態（{{ latestActivity.type === 'commit' ? '提交' : '留言' }}）：
-          {{ truncate(latestActivity.preview.replace(/\n/g, ' '), 200) }}
+          {{
+            t('prCard.latestActivity', {
+              type: latestActivity.type === 'commit' ? t('prCard.activity.commit') : t('prCard.activity.comment'),
+              message: truncate(latestActivity.preview.replace(/\n/g, ' '), 200),
+            })
+          }}
         </a>
         <div v-if="pr.ciStates.length" class="detail-ci-list">
           <template v-for="item in pr.ciStates" :key="item.name">
@@ -104,9 +110,9 @@
 
     <div v-if="cinematic && showEffect" class="cinematic-overlay" aria-live="polite">
 
-      <p v-if="effect === 'new_pr'" class="effect-title">🚀 New PR arrived</p>
-      <p v-else-if="effect === 'ci_complete'" class="effect-title">CI 全部完成</p>
-      <p v-else-if="effect === 'merged'" class="effect-title">🔀 Merged to mainline</p>
+      <p v-if="effect === 'new_pr'" class="effect-title">{{ t('prCard.effect.newPr') }}</p>
+      <p v-else-if="effect === 'ci_complete'" class="effect-title">{{ t('prCard.effect.ciComplete') }}</p>
+      <p v-else-if="effect === 'merged'" class="effect-title">{{ t('prCard.effect.merged') }}</p>
 
       <div v-if="effect === 'ci_complete'" class="ci-result-list">
         <span
@@ -143,6 +149,7 @@ import { computed, toRefs } from 'vue';
 import type { PullRequestCard } from '../services/githubApi';
 import { truncate } from '../utils/parsers.ts';
 import CiStatusBadges from './CiStatusBadges.vue';
+import { useI18n } from '../services/i18n.ts';
 
 type ShowcaseEffect = 'new_pr' | 'ci_complete' | 'merged';
 
@@ -166,6 +173,7 @@ const props = withDefaults(
   },
 );
 
+const { t, intlLocale, resolvedLocale } = useI18n();
 const { pr, activityDisplayMode, dateDisplayMode } = toRefs(props);
 const confettiStyles = Array.from({ length: 18 }, (_, index) => ({
   key: index,
@@ -178,31 +186,35 @@ const confettiStyles = Array.from({ length: 18 }, (_, index) => ({
 
 function formatDate(value: string): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '未知時間';
-  if (dateDisplayMode.value === 'full') return date.toLocaleString();
+  if (Number.isNaN(date.getTime())) return t('time.unknown');
+  if (dateDisplayMode.value === 'full') return date.toLocaleString(intlLocale.value);
 
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
 
   if (diffMs < 0) {
-    return date.toLocaleString();
+    return date.toLocaleString(intlLocale.value);
   }
 
   const diffMinutes = Math.floor(diffMs / 60_000);
   if (diffMinutes < 60) {
-    return `${Math.max(1, diffMinutes)} 分鐘前`;
+    return t('time.minutesAgo', { count: Math.max(1, diffMinutes) });
   }
 
   const isSameDay = now.getFullYear() === date.getFullYear()
     && now.getMonth() === date.getMonth()
     && now.getDate() === date.getDate();
   if (isSameDay) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    return date.toLocaleTimeString(intlLocale.value, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: resolvedLocale.value === 'en',
+    });
   }
 
   const diffDays = Math.floor(diffMs / 86_400_000);
   if (diffDays < 7) {
-    return `${Math.max(1, diffDays)} 天前`;
+    return t('time.daysAgo', { count: Math.max(1, diffDays) });
   }
 
   if (now.getFullYear() === date.getFullYear()) {
@@ -263,13 +275,6 @@ const latestActivity = computed(() => {
   };
 });
 
-const statusLabelMap = {
-  draft: 'draft',
-  'pending review': 'pending review',
-  'ci failed': 'ci failed',
-  approved: 'approved',
-} as const;
-
 const statusClassMap = {
   draft: 'is-draft',
   'pending review': 'is-pending-review',
@@ -281,9 +286,12 @@ const statusLabel = computed(() => {
   const status = pr.value.reviewStatus;
   if (!status) return '';
   if (status === 'approved') {
-    return `${Math.max(1, pr.value.approvedCount)} ${statusLabelMap.approved}`;
+    return t('prCard.status.approved', { count: Math.max(1, pr.value.approvedCount) });
   }
-  return statusLabelMap[status] ?? '';
+  if (status === 'draft') return t('prCard.status.draft');
+  if (status === 'pending review') return t('prCard.status.pendingReview');
+  if (status === 'ci failed') return t('prCard.status.ciFailed');
+  return '';
 });
 
 const statusClass = computed(() => {

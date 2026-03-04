@@ -75,21 +75,18 @@ function isLikelyGithubToken(value: string): boolean {
   return /^(gh[pousr]_|github_pat_).{10,}$/.test(value);
 }
 
-export function validateGithubToken(token: string): { valid: boolean; message: string } {
+export function validateGithubToken(token: string): { valid: boolean; reason: 'empty' | 'invalid_format' | 'ok' } {
   const normalizedToken = token.trim();
 
   if (!normalizedToken) {
-    return { valid: false, message: 'Token 不能為空。' };
+    return { valid: false, reason: 'empty' };
   }
 
   if (!isLikelyGithubToken(normalizedToken)) {
-    return {
-      valid: false,
-      message: 'Token 格式看起來不正確，請確認是否完整貼上 GitHub Personal Access Token。',
-    };
+    return { valid: false, reason: 'invalid_format' };
   }
 
-  return { valid: true, message: '格式檢查通過。' };
+  return { valid: true, reason: 'ok' };
 }
 
 async function request(path: string) {
