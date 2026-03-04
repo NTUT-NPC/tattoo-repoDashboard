@@ -166,6 +166,31 @@
               <div class="token-controls">
                 <button type="button" class="secondary" @click="previewLatestPrStatusAnimation">{{ t('settings.animationPreview.button') }}</button>
               </div>
+
+              <label class="token-label">{{ t('settings.statusAnimationSound') }}</label>
+              <div class="token-controls refresh-controls notification-controls">
+                <label class="toggle-control" for="status-animation-sound-enabled">
+                  <input
+                    id="status-animation-sound-enabled"
+                    v-model="statusAnimationSoundEnabled"
+                    type="checkbox"
+                    @change="applyStatusAnimationSoundEnabled"
+                  />
+                  <span>{{ t('settings.statusAnimationSound.toggle') }}</span>
+                </label>
+              </div>
+              <div class="token-controls refresh-controls">
+                <input
+                  id="status-animation-sound-file"
+                  type="file"
+                  accept="audio/*"
+                  @change="uploadStatusAnimationSound"
+                />
+                <button type="button" class="secondary" @click="previewStatusAnimationSound">{{ t('settings.statusAnimationSound.preview') }}</button>
+                <button type="button" class="secondary" @click="clearCustomStatusAnimationSound">{{ t('settings.statusAnimationSound.reset') }}</button>
+              </div>
+              <p class="token-hint">{{ t('settings.statusAnimationSound.current', { name: statusAnimationSoundLabel }) }}</p>
+
               <label for="status-animation-close-delay" class="token-label">{{ t('settings.statusAnimationCloseDelay') }}</label>
               <div class="token-controls refresh-controls">
                 <input
@@ -579,9 +604,9 @@ async function applyScreenWakeLockSetting() {
 
 function applyStatusAnimationSoundEnabled() {
   window.localStorage.setItem(STATUS_ANIMATION_SOUND_ENABLED_STORAGE_KEY, String(statusAnimationSoundEnabled.value));
-  tokenMessage.value = statusAnimationSoundEnabled.value
+  setTokenMessageText(statusAnimationSoundEnabled.value
     ? '已啟用 PR 狀態更新音效。'
-    : '已關閉 PR 狀態更新音效。';
+    : '已關閉 PR 狀態更新音效。');
 }
 
 async function uploadStatusAnimationSound(event: Event) {
@@ -590,7 +615,7 @@ async function uploadStatusAnimationSound(event: Event) {
   if (!file) return;
 
   if (!file.type.startsWith('audio/')) {
-    tokenMessage.value = '請選擇音訊檔案（audio/*）。';
+    setTokenMessageText('請選擇音訊檔案（audio/*）。');
     input.value = '';
     return;
   }
@@ -606,7 +631,7 @@ async function uploadStatusAnimationSound(event: Event) {
   });
 
   if (!fileDataUrl) {
-    tokenMessage.value = '讀取音效檔案失敗，請重新上傳。';
+    setTokenMessageText('讀取音效檔案失敗，請重新上傳。');
     input.value = '';
     return;
   }
@@ -616,7 +641,7 @@ async function uploadStatusAnimationSound(event: Event) {
   window.localStorage.setItem(STATUS_ANIMATION_SOUND_DATA_URL_STORAGE_KEY, customStatusAnimationSoundDataUrl.value);
   window.localStorage.setItem(STATUS_ANIMATION_SOUND_NAME_STORAGE_KEY, customStatusAnimationSoundName.value);
   statusAnimationAudio = null;
-  tokenMessage.value = `已套用自訂音效：${file.name}`;
+  setTokenMessageText(`已套用自訂音效：${file.name}`);
   input.value = '';
 }
 
@@ -626,7 +651,7 @@ function clearCustomStatusAnimationSound() {
   window.localStorage.removeItem(STATUS_ANIMATION_SOUND_DATA_URL_STORAGE_KEY);
   window.localStorage.removeItem(STATUS_ANIMATION_SOUND_NAME_STORAGE_KEY);
   statusAnimationAudio = null;
-  tokenMessage.value = '已恢復預設音效 cash.mp3。';
+  setTokenMessageText('已恢復預設音效 cash.mp3。');
 }
 
 async function playStatusAnimationSound() {
@@ -650,7 +675,7 @@ async function playStatusAnimationSound() {
 
 function previewStatusAnimationSound() {
   void playStatusAnimationSound();
-  tokenMessage.value = `已嘗試播放音效：${statusAnimationSoundLabel.value}`;
+  setTokenMessageText(`已嘗試播放音效：${statusAnimationSoundLabel.value}`);
 }
 
 function handleVisibilityChange() {
@@ -854,6 +879,9 @@ function triggerPrStatusAnimation(params: {
   detailCiSummary.value = params.ciSummary ?? [];
   detailShowEffect.value = true;
   setTokenMessageText(params.message);
+  if (params.effect === 'merged') {
+    void playStatusAnimationSound();
+  }
 
   previewCloseTimer = setTimeout(() => {
     closePrDetails();
