@@ -13,7 +13,8 @@ function readLanguageModeFromStorage(): LanguageMode {
 
 function getBrowserResolvedLocale(): ResolvedLocale {
   const raw = (navigator.languages?.[0] ?? navigator.language ?? '').toLowerCase();
-  if (raw.startsWith('zh')) return 'zh';
+  // 若瀏覽器為中文，預設採用文言模式
+  if (raw.startsWith('zh')) return 'wzh';
   return 'en';
 }
 
