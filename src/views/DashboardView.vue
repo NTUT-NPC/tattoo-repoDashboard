@@ -72,6 +72,7 @@
                   <option value="auto">{{ t('settings.language.auto') }}</option>
                   <option value="zh">{{ t('settings.language.zh') }}</option>
                   <option value="en">{{ t('settings.language.en') }}</option>
+                  <option value="wzh">{{ t('settings.language.wzh') }}</option>
                 </select>
               </div>
 
