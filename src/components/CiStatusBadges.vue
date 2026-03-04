@@ -1,5 +1,5 @@
 <template>
-  <div class="ci-badges" aria-label="CI statuses">
+  <div class="ci-badges" :aria-label="t('ciStatuses.aria')">
     <a
       v-for="item in displayItems"
       :key="item.name"
@@ -51,10 +51,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from '../services/i18n.ts';
 
 type CiItem = { name: string; status: string; conclusion: string | null; url: string | null };
 
 const props = defineProps<{ items: CiItem[] }>();
+const { t } = useI18n();
 
 const displayItems = computed(() => [...props.items].reverse());
 
