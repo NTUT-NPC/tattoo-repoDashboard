@@ -19,7 +19,7 @@
 - PR 卡片包含：
   - PR 編號、標題、作者
   - 最新 commit / 最新 comment（可切換顯示模式）
-  - linked issue（由標題/內文解析）
+  - linked issue（由 GitHub 系統連結事件判定）
   - CI badges（只保留 GitHub Actions workflow check）
   - review 狀態（draft / pending review / approved / changes requested / ci failed）
   - approved reviewer 計數
@@ -36,6 +36,7 @@
   - 動態顯示模式（分開顯示 / 只顯示最新動態）
   - 時間顯示模式（智慧時間 / 完整時間）
   - 狀態動畫自動關閉秒數
+  - 自動檢查 dashboard 是否有新 push（可設定分鐘間隔，CI 進行中會延後重試）
 
 ### GitHub Pages base path
 

@@ -205,6 +205,18 @@
               </div>
               <p class="token-hint">{{ t('settings.statusAnimationCloseDelay.range', { min: MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC, max: MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC, def: DEFAULT_STATUS_ANIMATION_CLOSE_DELAY_SEC }) }}</p>
               <p class="token-hint">{{ t('settings.statusAnimationCloseDelay.hint') }}</p>
+              <label class="token-label">{{ t('settings.autoUpdateCheck') }}</label>
+              <div class="token-controls refresh-controls notification-controls">
+                <label class="toggle-control" for="auto-update-check-enabled">
+                  <input id="auto-update-check-enabled" v-model="autoUpdateCheckEnabled" type="checkbox" @change="applyAutoUpdateCheckEnabled" />
+                  <span>{{ t('settings.autoUpdateCheck.toggle') }}</span>
+                </label>
+              </div>
+              <div class="token-controls refresh-controls">
+                <input id="auto-update-check-interval" v-model.number="autoUpdateCheckIntervalMinInput" type="number" :min="MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN" :max="MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN" step="1" />
+                <button type="button" @click="applyAutoUpdateCheckInterval">{{ t('settings.apply') }}</button>
+              </div>
+              <p class="token-hint">{{ t('settings.autoUpdateCheck.range', { min: MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN, max: MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN, def: DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN }) }}</p>
               <p class="token-hint">
                 {{ t('settings.projectRepo') }}
                 <a href="https://github.com/NTUT-NPC/tattoo-repoDashboard" target="_blank" rel="noreferrer noopener">
@@ -297,6 +309,11 @@ const MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC = 3;
 const MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC = 20;
 const STATUS_ANIMATION_CLOSE_DELAY_STORAGE_KEY = 'tattoo-dashboard-pr-status-close-delay-sec';
 const ONBOARDING_DISMISSED_STORAGE_KEY = 'tattoo-dashboard-onboarding-dismissed';
+const AUTO_UPDATE_CHECK_ENABLED_STORAGE_KEY = 'tattoo-dashboard-auto-update-check-enabled';
+const AUTO_UPDATE_CHECK_INTERVAL_MIN_STORAGE_KEY = 'tattoo-dashboard-auto-update-check-interval-min';
+const DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN = 10;
+const MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN = 1;
+const MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN = 1000;
 
 type ActivityDisplayMode = 'separate' | 'latest';
 type DateDisplayMode = 'smart' | 'full';
@@ -339,12 +356,17 @@ const customStatusAnimationSoundName = ref('');
 const detailEffect = ref<'new_pr' | 'ci_complete' | 'merged'>('ci_complete');
 const detailCiSummary = ref<Array<{ name: string; result: 'success' | 'failure' }>>([]);
 const detailShowEffect = ref(false);
+const autoUpdateCheckEnabled = ref(false);
+const autoUpdateCheckIntervalMin = ref(DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN);
+const autoUpdateCheckIntervalMinInput = ref(DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN);
 let timer: ReturnType<typeof setInterval> | null = null;
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 let previewCloseTimer: ReturnType<typeof setTimeout> | null = null;
 let nextRefreshAt: number | null = null;
 let wakeLockSentinel: WakeLockSentinel | null = null;
 let statusAnimationAudio: HTMLAudioElement | null = null;
+let autoUpdateTimer: ReturnType<typeof setInterval> | null = null;
+let latestRepoDashboardPushSha = '';
 
 let refreshInFlight: Promise<void> | null = null;
 let refreshQueued = false;
@@ -449,6 +471,64 @@ function readStatusAnimationCloseDelayFromStorage() {
 
   return parsed;
 }
+function readAutoUpdateCheckEnabledFromStorage() {
+  return window.localStorage.getItem(AUTO_UPDATE_CHECK_ENABLED_STORAGE_KEY) === 'true';
+}
+function readAutoUpdateCheckIntervalMinFromStorage() {
+  const raw = Number(window.localStorage.getItem(AUTO_UPDATE_CHECK_INTERVAL_MIN_STORAGE_KEY));
+  if (!Number.isInteger(raw)) return DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN;
+  if (raw < MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN || raw > MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN) return DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN;
+  return raw;
+}
+function applyAutoUpdateCheckEnabled() {
+  window.localStorage.setItem(AUTO_UPDATE_CHECK_ENABLED_STORAGE_KEY, String(autoUpdateCheckEnabled.value));
+  restartAutoUpdateTimer();
+}
+function applyAutoUpdateCheckInterval() {
+  if (!Number.isInteger(autoUpdateCheckIntervalMinInput.value)) return;
+  if (autoUpdateCheckIntervalMinInput.value < MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN || autoUpdateCheckIntervalMinInput.value > MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN) return;
+  autoUpdateCheckIntervalMin.value = autoUpdateCheckIntervalMinInput.value;
+  window.localStorage.setItem(AUTO_UPDATE_CHECK_INTERVAL_MIN_STORAGE_KEY, String(autoUpdateCheckIntervalMin.value));
+  restartAutoUpdateTimer();
+}
+
+async function checkRepoDashboardUpdate() {
+  if (!autoUpdateCheckEnabled.value) return;
+  const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
+  const envToken = (window.localStorage.getItem('github_api_token') ?? '').trim();
+  if (envToken) headers.Authorization = `Bearer ${envToken}`;
+  const branchResponse = await fetch('https://api.github.com/repos/NTUT-NPC/tattoo-repoDashboard/commits?per_page=1', { headers });
+  if (!branchResponse.ok) return;
+  const commits = await branchResponse.json();
+  const latestSha = commits?.[0]?.sha ?? '';
+  if (!latestSha) return;
+  if (!latestRepoDashboardPushSha) {
+    latestRepoDashboardPushSha = latestSha;
+    return;
+  }
+  if (latestSha === latestRepoDashboardPushSha) return;
+
+  const runsResp = await fetch('https://api.github.com/repos/NTUT-NPC/tattoo-repoDashboard/actions/runs?per_page=20', { headers });
+  if (!runsResp.ok) return;
+  const runsPayload = await runsResp.json();
+  const hasRunning = (runsPayload.workflow_runs ?? []).some((run: any) => run?.status !== 'completed');
+  if (hasRunning) {
+    setTimeout(() => {
+      void checkRepoDashboardUpdate();
+    }, 5 * 60 * 1000);
+    return;
+  }
+  latestRepoDashboardPushSha = latestSha;
+  window.location.reload();
+}
+
+function restartAutoUpdateTimer() {
+  if (autoUpdateTimer) clearInterval(autoUpdateTimer);
+  if (!autoUpdateCheckEnabled.value) return;
+  autoUpdateTimer = setInterval(() => {
+    void checkRepoDashboardUpdate();
+  }, autoUpdateCheckIntervalMin.value * 60 * 1000);
+}
 
 function applyActivityDisplayMode() {
   window.localStorage.setItem(ACTIVITY_DISPLAY_MODE_STORAGE_KEY, activityDisplayMode.value);
@@ -479,6 +559,7 @@ function formatReviewStatus(status: PullRequestCard['reviewStatus']): string {
   if (status === 'pending review') return t('prCard.status.pendingReview');
   if (status === 'ci failed') return t('prCard.status.ciFailed');
   if (status === 'approved') return t('prCard.status.approvedPlain');
+  if (status === 'approved (no write)') return t('prCard.status.approvedPlain');
   return status;
 }
 
@@ -1004,6 +1085,9 @@ onMounted(async () => {
   refreshIntervalInput.value = refreshIntervalSec.value;
   statusAnimationCloseDelaySec.value = readStatusAnimationCloseDelayFromStorage();
   statusAnimationCloseDelayInputSec.value = statusAnimationCloseDelaySec.value;
+  autoUpdateCheckEnabled.value = readAutoUpdateCheckEnabledFromStorage();
+  autoUpdateCheckIntervalMin.value = readAutoUpdateCheckIntervalMinFromStorage();
+  autoUpdateCheckIntervalMinInput.value = autoUpdateCheckIntervalMin.value;
   showOnboardingModal.value = window.localStorage.getItem(ONBOARDING_DISMISSED_STORAGE_KEY) !== 'true';
 
   hasTokenSaved.value = hasSavedGithubToken();
@@ -1020,12 +1104,15 @@ onMounted(async () => {
   updateRefreshCountdown();
   window.addEventListener('keydown', handleEscape);
   document.addEventListener('visibilitychange', handleVisibilityChange);
+  restartAutoUpdateTimer();
+  void checkRepoDashboardUpdate();
 });
 
 onUnmounted(() => {
   if (timer) clearInterval(timer);
   if (countdownTimer) clearInterval(countdownTimer);
   if (previewCloseTimer) clearTimeout(previewCloseTimer);
+  if (autoUpdateTimer) clearInterval(autoUpdateTimer);
   void releaseScreenWakeLock();
   window.removeEventListener('keydown', handleEscape);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
