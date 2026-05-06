@@ -28,15 +28,10 @@
         <img :src="pr.author.avatarUrl" :alt="pr.author.login" class="avatar" />
         <span>{{ pr.author.login }}</span>
       </a>
-      <div class="line-item" v-if="activityDisplayMode === 'separate' && pr.latestCommit">
-        <span class="type-icon" aria-hidden="true">🧾</span>
-        <img :src="pr.latestCommit.authorAvatarUrl" :alt="pr.latestCommit.authorLogin" class="avatar" />
-        <span>{{ pr.latestCommit.authorLogin }}</span>
-      </div>
-      <div class="line-item" v-if="activityDisplayMode === 'separate' && pr.latestComment">
-        <span class="type-icon" aria-hidden="true">💬</span>
-        <img :src="pr.latestComment.authorAvatarUrl" :alt="pr.latestComment.authorLogin" class="avatar" />
-        <span>{{ pr.latestComment.authorLogin }}</span>
+      <div v-for="item in separateActivities" :key="`summary-${item.type}`" class="line-item" v-if="activityDisplayMode === 'separate'">
+        <span class="type-icon" aria-hidden="true">{{ item.type === 'commit' ? '🧾' : '💬' }}</span>
+        <img :src="item.authorAvatarUrl" :alt="item.authorLogin" class="avatar" />
+        <span>{{ item.authorLogin }}</span>
       </div>
       <div class="line-item" v-if="activityDisplayMode === 'latest' && latestActivity">
         <span class="type-icon" aria-hidden="true">{{ latestActivity.type === 'commit' ? '🧾' : '💬' }}</span>
@@ -229,50 +224,33 @@ function toTimestamp(value: string): number {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-const latestActivity = computed(() => {
-  const commit = pr.value.latestCommit;
-  const comment = pr.value.latestComment;
-
-  if (!commit && !comment) return null;
-  if (!commit && comment) {
-    return {
-      type: 'comment' as const,
-      authorLogin: comment.authorLogin,
-      authorAvatarUrl: comment.authorAvatarUrl,
-      url: comment.url,
-      preview: comment.body,
-    };
-  }
-  if (commit && !comment) {
-    return {
+const separateActivities = computed(() => {
+  const items = [];
+  if (pr.value.latestCommit) {
+    items.push({
       type: 'commit' as const,
-      authorLogin: commit.authorLogin,
-      authorAvatarUrl: commit.authorAvatarUrl,
-      url: commit.url,
-      preview: commit.message,
-    };
+      authorLogin: pr.value.latestCommit.authorLogin,
+      authorAvatarUrl: pr.value.latestCommit.authorAvatarUrl,
+      url: pr.value.latestCommit.url,
+      preview: pr.value.latestCommit.message,
+      timestamp: toTimestamp(pr.value.latestCommit.authoredAt),
+    });
   }
-
-  const commitTs = toTimestamp(commit.authoredAt);
-  const commentTs = toTimestamp(comment.updatedAt);
-
-  if (commentTs >= commitTs) {
-    return {
+  if (pr.value.latestComment) {
+    items.push({
       type: 'comment' as const,
-      authorLogin: comment.authorLogin,
-      authorAvatarUrl: comment.authorAvatarUrl,
-      url: comment.url,
-      preview: comment.body,
-    };
+      authorLogin: pr.value.latestComment.authorLogin,
+      authorAvatarUrl: pr.value.latestComment.authorAvatarUrl,
+      url: pr.value.latestComment.url,
+      preview: pr.value.latestComment.body,
+      timestamp: toTimestamp(pr.value.latestComment.updatedAt),
+    });
   }
+  return items.sort((a, b) => b.timestamp - a.timestamp);
+});
 
-  return {
-    type: 'commit' as const,
-    authorLogin: commit.authorLogin,
-    authorAvatarUrl: commit.authorAvatarUrl,
-    url: commit.url,
-    preview: commit.message,
-  };
+const latestActivity = computed(() => {
+  return separateActivities.value[0] ?? null;
 });
 
 const statusClassMap = {

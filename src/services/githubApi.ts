@@ -1,4 +1,4 @@
-import { parseBuildNumberFromComments, parseLinkedIssue } from '../utils/parsers.ts';
+import { parseBuildNumberFromComments } from '../utils/parsers.ts';
 
 export type PullRequestCard = {
   id: number;
@@ -117,16 +117,61 @@ export async function fetchPullRequestMergeState(number: number): Promise<{ merg
   };
 }
 
-function normalizeCiStates(checkRuns: any[] = []) {
-  return checkRuns
-    .filter((run) => run?.name && run?.app?.slug === 'github-actions')
-    .map((run) => ({
-      name: run.name,
-      status: run.status,
-      conclusion: run.conclusion,
-      url: run.html_url,
-    }))
-    .slice(0, 4);
+const PR_CI_WORKFLOW_SCOPE: Record<string, string[]> = {
+  'flutter analyze': ['analyze'],
+  'pr preview': ['prepare', 'android', 'ios'],
+};
+
+const ciStateCache = new Map<string, { fetchedAt: number; value: Array<{ name: string; status: string; conclusion: string | null; url: string | null }> }>();
+const CI_STATE_CACHE_TTL_MS = 60_000;
+
+function normalizeJobName(value: string) {
+  return value.trim().toLowerCase();
+}
+
+async function fetchCiStatesByWorkflowScope(sha: string) {
+  const cached = ciStateCache.get(sha);
+  if (cached && Date.now() - cached.fetchedAt < CI_STATE_CACHE_TTL_MS) {
+    return cached.value;
+  }
+
+  const runsPayload = await request(`/repos/${OWNER}/${REPO}/actions/runs?head_sha=${sha}&per_page=20`);
+  const workflowRuns = (runsPayload.workflow_runs ?? []).filter((run: any) => {
+    const workflowName = normalizeJobName(String(run?.name ?? ''));
+    return workflowName in PR_CI_WORKFLOW_SCOPE && (run?.event === 'pull_request' || run?.event === 'workflow_dispatch');
+  });
+
+  const latestJobByName = new Map<string, { name: string; status: string; conclusion: string | null; url: string | null; startedAt: number }>();
+
+  for (const run of workflowRuns) {
+    const allowedJobs = new Set(PR_CI_WORKFLOW_SCOPE[normalizeJobName(run.name)] ?? []);
+    if (!allowedJobs.size) continue;
+
+    const jobsPayload = await request(`/repos/${OWNER}/${REPO}/actions/runs/${run.id}/jobs?per_page=100`);
+    for (const job of jobsPayload.jobs ?? []) {
+      const jobName = normalizeJobName(String(job?.name ?? ''));
+      if (!allowedJobs.has(jobName)) continue;
+      const startedAt = new Date(job.started_at ?? job.created_at ?? run.created_at).getTime();
+      const existing = latestJobByName.get(jobName);
+      if (existing && existing.startedAt >= startedAt) continue;
+
+      latestJobByName.set(jobName, {
+        name: jobName,
+        status: job.status ?? 'queued',
+        conclusion: job.conclusion,
+        url: job.html_url ?? run.html_url,
+        startedAt,
+      });
+    }
+  }
+
+  const normalized = ['analyze', 'prepare', 'ios', 'android']
+    .map((name) => latestJobByName.get(name))
+    .filter((item): item is { name: string; status: string; conclusion: string | null; url: string | null; startedAt: number } => Boolean(item))
+    .map(({ startedAt: _, ...item }) => item);
+
+  ciStateCache.set(sha, { fetchedAt: Date.now(), value: normalized });
+  return normalized;
 }
 
 function isFailedCiState(item: { status: string; conclusion: string | null }) {
@@ -138,7 +183,8 @@ function isFailedCiState(item: { status: string; conclusion: string | null }) {
 function inferReviewStatus(params: {
   draft: boolean;
   ciStates: Array<{ status: string; conclusion: string | null }>;
-  reviews: any[];
+  hasWriteApproved: boolean;
+  hasChangesRequested: boolean;
 }): PullRequestCard['reviewStatus'] {
   if (params.draft) {
     return 'draft';
@@ -148,26 +194,14 @@ function inferReviewStatus(params: {
     return 'ci failed';
   }
 
-  const latestReviewsByAuthor = new Map<string, string>();
-  params.reviews.forEach((review) => {
-    const login = review.user?.login;
-    if (!login) return;
-
-    latestReviewsByAuthor.set(login, review.state ?? '');
-  });
-
-  const latestStates = [...latestReviewsByAuthor.values()];
-  const hasChangesRequested = latestStates.includes('CHANGES_REQUESTED');
-  const hasApproved = latestStates.includes('APPROVED');
-
-  if (hasApproved && !hasChangesRequested) {
+  if (params.hasWriteApproved && !params.hasChangesRequested) {
     return 'approved';
   }
 
   return 'pending review';
 }
 
-function getApprovedCount(reviews: any[]): number {
+function getLatestReviewsByAuthor(reviews: any[]) {
   const latestReviewsByAuthor = new Map<string, string>();
   reviews.forEach((review) => {
     const login = review.user?.login;
@@ -176,7 +210,52 @@ function getApprovedCount(reviews: any[]): number {
     latestReviewsByAuthor.set(login, review.state ?? '');
   });
 
-  return [...latestReviewsByAuthor.values()].filter((state) => state === 'APPROVED').length;
+  return latestReviewsByAuthor;
+}
+
+const permissionCache = new Map<string, boolean>();
+
+async function hasWritePermission(login: string): Promise<boolean> {
+  const cacheKey = login.toLowerCase();
+  if (permissionCache.has(cacheKey)) return permissionCache.get(cacheKey) as boolean;
+
+  try {
+    const payload = await request(`/repos/${OWNER}/${REPO}/collaborators/${encodeURIComponent(login)}/permission`);
+    const permission = String(payload.permission ?? '').toLowerCase();
+    const result = permission === 'admin' || permission === 'write' || permission === 'maintain';
+    permissionCache.set(cacheKey, result);
+    return result;
+  } catch {
+    permissionCache.set(cacheKey, false);
+    return false;
+  }
+}
+
+async function getReviewApprovalSummary(reviews: any[]) {
+  const latestReviewsByAuthor = getLatestReviewsByAuthor(reviews);
+  const reviewEntries = [...latestReviewsByAuthor.entries()];
+  const hasChangesRequested = reviewEntries.some(([, state]) => state === 'CHANGES_REQUESTED');
+  const approvedAuthors = reviewEntries.filter(([, state]) => state === 'APPROVED').map(([login]) => login);
+  const approvedAuthorPermissions = await Promise.all(approvedAuthors.map((login) => hasWritePermission(login)));
+  const approvedCount = approvedAuthorPermissions.filter(Boolean).length;
+
+  return {
+    hasChangesRequested,
+    hasWriteApproved: approvedCount > 0,
+    approvedCount,
+  };
+}
+
+async function fetchLinkedIssueNumber(prNumber: number): Promise<string | null> {
+  try {
+    const timeline = await request(`/repos/${OWNER}/${REPO}/issues/${prNumber}/timeline?per_page=100`);
+    const connectedEvent = [...timeline].reverse().find((event: any) => event?.event === 'connected' && event?.subject?.type === 'Issue');
+    if (connectedEvent?.subject?.number) return String(connectedEvent.subject.number);
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 function isBotActor(user: any): boolean {
@@ -193,11 +272,12 @@ export async function fetchPrCards(): Promise<PullRequestCard[]> {
 
   const cards = await Promise.all(
     pulls.map(async (pr: any) => {
-      const [commits, issueComments, reviewComments, reviews] = await Promise.all([
+      const [commits, issueComments, reviewComments, reviews, linkedIssue] = await Promise.all([
         request(`/repos/${OWNER}/${REPO}/pulls/${pr.number}/commits?per_page=100`),
         request(`/repos/${OWNER}/${REPO}/issues/${pr.number}/comments?per_page=100`),
         request(`/repos/${OWNER}/${REPO}/pulls/${pr.number}/comments?per_page=100`),
         request(`/repos/${OWNER}/${REPO}/pulls/${pr.number}/reviews?per_page=100`),
+        fetchLinkedIssueNumber(pr.number),
       ]);
 
       const latestCommitRaw = commits.at(-1) ?? null;
@@ -230,11 +310,9 @@ export async function fetchPrCards(): Promise<PullRequestCard[]> {
         : null;
 
       const sha = latestCommit?.sha ?? pr.head.sha;
-      const checks = await request(`/repos/${OWNER}/${REPO}/commits/${sha}/check-runs`);
-
       const { buildNumber } = parseBuildNumberFromComments(issueComments);
-
-      const ciStates = normalizeCiStates(checks.check_runs);
+      const ciStates = await fetchCiStatesByWorkflowScope(sha);
+      const reviewSummary = await getReviewApprovalSummary(reviews);
 
       return {
         id: pr.id,
@@ -250,11 +328,11 @@ export async function fetchPrCards(): Promise<PullRequestCard[]> {
         },
         latestCommit,
         latestComment,
-        linkedIssue: parseLinkedIssue({ title: pr.title, body: pr.body }),
+        linkedIssue,
         buildNumber,
         ciStates,
-        reviewStatus: inferReviewStatus({ draft: Boolean(pr.draft), ciStates, reviews }),
-        approvedCount: getApprovedCount(reviews),
+        reviewStatus: inferReviewStatus({ draft: Boolean(pr.draft), ciStates, ...reviewSummary }),
+        approvedCount: reviewSummary.approvedCount,
       } as PullRequestCard;
     }),
   );

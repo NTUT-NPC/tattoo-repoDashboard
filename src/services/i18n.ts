@@ -86,6 +86,9 @@ const MESSAGES = {
     'settings.apply': '套用',
     'settings.statusAnimationCloseDelay.range': '可設定 {min} - {max} 秒（預設 {def} 秒）。',
     'settings.statusAnimationCloseDelay.hint': '使用目前最新 PR 模擬一次狀態更新動畫。',
+    'settings.autoUpdateCheck': '自動檢查 dashboard 更新',
+    'settings.autoUpdateCheck.toggle': '啟用後定期檢查 tattoo-repoDashboard 是否有新 push',
+    'settings.autoUpdateCheck.range': '檢查間隔 {min}-{max} 分鐘（預設 {def} 分鐘，CI 未完成時固定 5 分鐘重試）。',
     'settings.projectRepo': '專案 Repo：',
     'onboarding.title': '歡迎使用 Tattoo PR Dashboard',
     'onboarding.body': '你可以先用匿名模式快速瀏覽，也可以先在設定填入 GitHub API Token，避免匿名模式遇到連線限制。',
@@ -222,6 +225,9 @@ const MESSAGES = {
     'settings.apply': 'Apply',
     'settings.statusAnimationCloseDelay.range': 'Range: {min} - {max} seconds (default {def}).',
     'settings.statusAnimationCloseDelay.hint': 'Uses the latest PR to simulate an update animation once.',
+    'settings.autoUpdateCheck': 'Auto check dashboard updates',
+    'settings.autoUpdateCheck.toggle': 'Periodically check new pushes on tattoo-repoDashboard',
+    'settings.autoUpdateCheck.range': 'Interval {min}-{max} min (default {def}; retries after 5 min while CI is running).',
     'settings.projectRepo': 'Project repo:',
     'onboarding.title': 'Welcome to Tattoo PR Dashboard',
     'onboarding.body': 'You can browse quickly in anonymous mode, or add a GitHub API token in Settings to avoid rate limits.',
@@ -359,6 +365,9 @@ const MESSAGES = {
     'settings.apply': '施行',
     'settings.statusAnimationCloseDelay.range': '可設 {min}-{max} 秒（常值 {def} 秒）。',
     'settings.statusAnimationCloseDelay.hint': '以現時最新 PR 作一回模擬。',
+    'settings.autoUpdateCheck': '自動察 dashboard 更新',
+    'settings.autoUpdateCheck.toggle': '啟之則按時察 tattoo-repoDashboard 有無新 push',
+    'settings.autoUpdateCheck.range': '間隔 {min}-{max} 分（預設 {def} 分；CI 未竟則五分後再試）。',
     'settings.projectRepo': '本案倉庫：',
     'onboarding.title': '迎君臨 Tattoo PR 御覽臺',
     'onboarding.body': '可先以佚名速覽，亦可先入 GitHub API Token，以免佚名受頻率之限。',
@@ -466,4 +475,3 @@ export function useI18n() {
     setLanguageMode,
   };
 }
-
