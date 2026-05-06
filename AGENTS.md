@@ -4,7 +4,7 @@
 This file applies to the whole repository.
 
 ## Last updated
-- Timestamp (UTC): 2026-03-01T00:21:40Z
+- Timestamp (UTC): 2026-05-06T17:35:05Z
 
 ## Project snapshot (current)
 - Repo type: GitHub Pages front-end dashboard for `NTUT-NPC/tattoo` pull request monitoring.
