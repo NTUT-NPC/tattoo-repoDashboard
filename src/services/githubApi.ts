@@ -27,7 +27,7 @@ export type PullRequestCard = {
   linkedIssue: string | null;
   buildNumber: string | null;
   ciStates: Array<{ name: string; status: string; conclusion: string | null; url: string | null }>;
-  reviewStatus: 'draft' | 'pending review' | 'ci failed' | 'approved' | null;
+  reviewStatus: 'draft' | 'pending review' | 'ci failed' | 'approved' | 'approved (no write)' | null;
   approvedCount: number;
 };
 
@@ -184,6 +184,7 @@ function inferReviewStatus(params: {
   draft: boolean;
   ciStates: Array<{ status: string; conclusion: string | null }>;
   hasWriteApproved: boolean;
+  hasAnyApproved: boolean;
   hasChangesRequested: boolean;
 }): PullRequestCard['reviewStatus'] {
   if (params.draft) {
@@ -196,6 +197,10 @@ function inferReviewStatus(params: {
 
   if (params.hasWriteApproved && !params.hasChangesRequested) {
     return 'approved';
+  }
+
+  if (params.hasAnyApproved && !params.hasChangesRequested) {
+    return 'approved (no write)';
   }
 
   return 'pending review';
@@ -237,12 +242,13 @@ async function getReviewApprovalSummary(reviews: any[]) {
   const hasChangesRequested = reviewEntries.some(([, state]) => state === 'CHANGES_REQUESTED');
   const approvedAuthors = reviewEntries.filter(([, state]) => state === 'APPROVED').map(([login]) => login);
   const approvedAuthorPermissions = await Promise.all(approvedAuthors.map((login) => hasWritePermission(login)));
-  const approvedCount = approvedAuthorPermissions.filter(Boolean).length;
+  const writeApprovedCount = approvedAuthorPermissions.filter(Boolean).length;
 
   return {
     hasChangesRequested,
-    hasWriteApproved: approvedCount > 0,
-    approvedCount,
+    hasWriteApproved: writeApprovedCount > 0,
+    hasAnyApproved: approvedAuthors.length > 0,
+    approvedCount: approvedAuthors.length,
   };
 }
 

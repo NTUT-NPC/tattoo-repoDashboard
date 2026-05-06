@@ -258,12 +258,13 @@ const statusClassMap = {
   'pending review': 'is-pending-review',
   'ci failed': 'is-ci-failed',
   approved: 'is-approved',
+  'approved (no write)': 'is-pending-review',
 } as const;
 
 const statusLabel = computed(() => {
   const status = pr.value.reviewStatus;
   if (!status) return '';
-  if (status === 'approved') {
+  if (status === 'approved' || status === 'approved (no write)') {
     return t('prCard.status.approved', { count: Math.max(1, pr.value.approvedCount) });
   }
   if (status === 'draft') return t('prCard.status.draft');

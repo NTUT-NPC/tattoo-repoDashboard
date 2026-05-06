@@ -559,6 +559,7 @@ function formatReviewStatus(status: PullRequestCard['reviewStatus']): string {
   if (status === 'pending review') return t('prCard.status.pendingReview');
   if (status === 'ci failed') return t('prCard.status.ciFailed');
   if (status === 'approved') return t('prCard.status.approvedPlain');
+  if (status === 'approved (no write)') return t('prCard.status.approvedPlain');
   return status;
 }
 
