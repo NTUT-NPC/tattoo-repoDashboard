@@ -54,7 +54,7 @@
           <p class="hero-title">{{ t('prCard.updatedAt', { time: formatDate(pr.updatedAt) }) }}</p>
           <p class="hero-subtitle">#{{ pr.number }} · {{ pr.author.login }}</p>
         </div>
-        <a :href="pr.url" target="_blank" rel="noreferrer" class="hero-open-link">Open on GitHub ↗</a>
+        <a :href="pr.url" target="_blank" rel="noreferrer" class="hero-open-link">{{ t('prCard.openOnGitHub') }} ↗</a>
       </div>
       <div class="detail-content">
         <a
@@ -65,7 +65,7 @@
           class="detail-link detail-block"
           :title="pr.latestCommit.message"
         >
-          <strong>Commit</strong>
+          <strong>{{ t('prCard.detailLabel.commit') }}</strong>
           <span>{{ t('prCard.latestCommit', { message: pr.latestCommit.message }) }}</span>
         </a>
         <a
@@ -76,7 +76,7 @@
           class="detail-link detail-block"
           :title="pr.latestComment.body"
         >
-          <strong>Comment</strong>
+          <strong>{{ t('prCard.detailLabel.comment') }}</strong>
           <span>{{ t('prCard.latestComment', { message: truncate(pr.latestComment.body.replace(/\n/g, ' '), 200) }) }}</span>
         </a>
         <a
@@ -106,10 +106,10 @@
               target="_blank"
               rel="noreferrer"
             >
-              <strong>CI</strong>
+              <strong>{{ t('prCard.detailLabel.ci') }}</strong>
               <span>{{ item.name }} · {{ item.conclusion ?? item.status }}</span>
             </a>
-            <span v-else class="detail-text detail-block"><strong>CI</strong><span>{{ item.name }} · {{ item.conclusion ?? item.status }}</span></span>
+            <span v-else class="detail-text detail-block"><strong>{{ t('prCard.detailLabel.ci') }}</strong><span>{{ item.name }} · {{ item.conclusion ?? item.status }}</span></span>
           </template>
         </div>
       </div>
