@@ -62,167 +62,347 @@
         >
           <div class="settings-card" role="dialog" aria-modal="true" :aria-label="t('aria.settingsDialog')">
             <div class="settings-toolbar">
-              <h2>{{ t('settings.title') }}</h2>
+              <div>
+                <h2>{{ t('settings.title') }}</h2>
+                <p class="settings-toolbar-status">{{ tokenMessage }}</p>
+              </div>
               <button type="button" class="close-btn" :aria-label="t('aria.closeSettingsDialog')" @click="showTokenPanel = false">✕</button>
             </div>
-            <div class="settings-content">
-              <label for="language-mode" class="token-label">{{ t('settings.language') }}</label>
-              <div class="token-controls refresh-controls">
-                <select id="language-mode" v-model="languageMode" @change="applyLanguageMode">
-                  <option value="auto">{{ t('settings.language.auto') }}</option>
-                  <option value="zh">{{ t('settings.language.zh') }}</option>
-                  <option value="en">{{ t('settings.language.en') }}</option>
-                  <option value="wzh">{{ t('settings.language.wzh') }}</option>
-                </select>
-              </div>
+            <div class="settings-layout">
+              <nav class="settings-nav" :aria-label="t('settings.title')" role="tablist">
+                <button
+                  id="settings-tab-general"
+                  type="button"
+                  role="tab"
+                  :aria-selected="activeSettingsTab === 'general'"
+                  aria-controls="settings-panel-general"
+                  :class="{ active: activeSettingsTab === 'general' }"
+                  @click="activeSettingsTab = 'general'"
+                >
+                  {{ t('settings.section.general') }}
+                </button>
+                <button
+                  id="settings-tab-alerts"
+                  type="button"
+                  role="tab"
+                  :aria-selected="activeSettingsTab === 'alerts'"
+                  aria-controls="settings-panel-alerts"
+                  :class="{ active: activeSettingsTab === 'alerts' }"
+                  @click="activeSettingsTab = 'alerts'"
+                >
+                  {{ t('settings.section.alerts') }}
+                </button>
+                <button
+                  id="settings-tab-access"
+                  type="button"
+                  role="tab"
+                  :aria-selected="activeSettingsTab === 'access'"
+                  aria-controls="settings-panel-access"
+                  :class="{ active: activeSettingsTab === 'access' }"
+                  @click="activeSettingsTab = 'access'"
+                >
+                  {{ t('settings.section.access') }}
+                </button>
+                <button
+                  id="settings-tab-animation"
+                  type="button"
+                  role="tab"
+                  :aria-selected="activeSettingsTab === 'animation'"
+                  aria-controls="settings-panel-animation"
+                  :class="{ active: activeSettingsTab === 'animation' }"
+                  @click="activeSettingsTab = 'animation'"
+                >
+                  {{ t('settings.section.animation') }}
+                </button>
+                <button
+                  id="settings-tab-refresh"
+                  type="button"
+                  role="tab"
+                  :aria-selected="activeSettingsTab === 'refresh'"
+                  aria-controls="settings-panel-refresh"
+                  :class="{ active: activeSettingsTab === 'refresh' }"
+                  @click="activeSettingsTab = 'refresh'"
+                >
+                  {{ t('settings.section.refresh') }}
+                </button>
+              </nav>
 
-              <label for="activity-display-mode" class="token-label">{{ t('settings.activityDisplayMode') }}</label>
-              <div class="token-controls refresh-controls">
-                <select id="activity-display-mode" v-model="activityDisplayMode" @change="applyActivityDisplayMode">
-                  <option value="separate">{{ t('settings.activityMode.separate') }}</option>
-                  <option value="latest">{{ t('settings.activityMode.latest') }}</option>
-                </select>
-              </div>
-              <p class="token-hint">{{ t('settings.activityHint') }}</p>
+              <div class="settings-content">
+                <section
+                  v-show="activeSettingsTab === 'general'"
+                  id="settings-panel-general"
+                  class="settings-section"
+                  role="tabpanel"
+                  aria-labelledby="settings-tab-general"
+                >
+                  <div class="settings-section-heading">
+                    <h3>{{ t('settings.section.general') }}</h3>
+                  </div>
 
-              <label class="token-label">{{ t('settings.desktopNotification') }}</label>
-              <div class="token-controls refresh-controls notification-controls">
-                <label class="toggle-control" for="desktop-notification-enabled">
-                  <input
-                    id="desktop-notification-enabled"
-                    v-model="desktopNotificationEnabled"
-                    type="checkbox"
-                    @change="applyDesktopNotificationSetting"
-                  />
-                  <span>{{ t('settings.desktopNotification.toggle') }}</span>
-                </label>
-                <button type="button" class="secondary" @click="requestDesktopNotificationPermission">{{ t('settings.desktopNotification.requestPermission') }}</button>
-              </div>
-              <p class="token-hint">{{ t('settings.desktopNotification.permissionState', { state: desktopNotificationPermissionText }) }}</p>
-              <p class="token-hint">{{ t('settings.desktopNotification.hint') }}</p>
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <label for="language-mode" class="setting-title">{{ t('settings.language') }}</label>
+                    </div>
+                    <div class="settings-control">
+                      <select id="language-mode" v-model="languageMode" @change="applyLanguageMode">
+                        <option value="auto">{{ t('settings.language.auto') }}</option>
+                        <option value="zh">{{ t('settings.language.zh') }}</option>
+                        <option value="en">{{ t('settings.language.en') }}</option>
+                        <option value="wzh">{{ t('settings.language.wzh') }}</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <label class="token-label">{{ t('settings.wakeLock') }}</label>
-              <div class="token-controls refresh-controls notification-controls">
-                <label class="toggle-control" for="screen-wake-lock-enabled">
-                  <input
-                    id="screen-wake-lock-enabled"
-                    v-model="screenWakeLockEnabled"
-                    type="checkbox"
-                    :disabled="!isWakeLockSupported"
-                    @change="applyScreenWakeLockSetting"
-                  />
-                  <span>{{ t('settings.wakeLock.toggle') }}</span>
-                </label>
-              </div>
-              <p class="token-hint">{{ t('settings.wakeLock.status', { state: wakeLockStatusText }) }}</p>
-              <p class="token-hint">{{ t('settings.wakeLock.hint') }}</p>
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <span class="setting-title">{{ t('settings.activityDisplayMode') }}</span>
+                      <span class="setting-hint">{{ t('settings.activityHint') }}</span>
+                    </div>
+                    <div class="settings-control">
+                      <div class="segmented-control" role="radiogroup" :aria-label="t('settings.activityDisplayMode')">
+                        <label :class="{ active: activityDisplayMode === 'separate' }">
+                          <input v-model="activityDisplayMode" type="radio" value="separate" @change="applyActivityDisplayMode" />
+                          <span>{{ t('settings.activityMode.separate') }}</span>
+                        </label>
+                        <label :class="{ active: activityDisplayMode === 'latest' }">
+                          <input v-model="activityDisplayMode" type="radio" value="latest" @change="applyActivityDisplayMode" />
+                          <span>{{ t('settings.activityMode.latest') }}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
 
-              <label for="date-display-mode" class="token-label">{{ t('settings.dateDisplayMode') }}</label>
-              <div class="token-controls refresh-controls">
-                <select id="date-display-mode" v-model="dateDisplayMode" @change="applyDateDisplayMode">
-                  <option value="smart">{{ t('settings.dateMode.smart') }}</option>
-                  <option value="full">{{ t('settings.dateMode.full') }}</option>
-                </select>
-              </div>
-              <p class="token-hint">{{ t('settings.dateHint') }}</p>
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <span class="setting-title">{{ t('settings.dateDisplayMode') }}</span>
+                      <span class="setting-hint">{{ t('settings.dateHint') }}</span>
+                    </div>
+                    <div class="settings-control">
+                      <div class="segmented-control" role="radiogroup" :aria-label="t('settings.dateDisplayMode')">
+                        <label :class="{ active: dateDisplayMode === 'smart' }">
+                          <input v-model="dateDisplayMode" type="radio" value="smart" @change="applyDateDisplayMode" />
+                          <span>{{ t('settings.dateMode.smart') }}</span>
+                        </label>
+                        <label :class="{ active: dateDisplayMode === 'full' }">
+                          <input v-model="dateDisplayMode" type="radio" value="full" @change="applyDateDisplayMode" />
+                          <span>{{ t('settings.dateMode.full') }}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </section>
 
-              <label for="refresh-interval" class="token-label">{{ t('settings.refreshInterval') }}</label>
-              <div class="token-controls refresh-controls">
-                <input
-                  id="refresh-interval"
-                  v-model.number="refreshIntervalInput"
-                  type="number"
-                  :min="MIN_REFRESH_INTERVAL_SEC"
-                  :max="MAX_REFRESH_INTERVAL_SEC"
-                  step="1"
-                />
-                <button type="button" @click="applyRefreshInterval">{{ t('settings.refreshInterval.apply') }}</button>
-              </div>
-              <p class="token-hint">{{ t('settings.refreshInterval.range', { min: MIN_REFRESH_INTERVAL_SEC, max: MAX_REFRESH_INTERVAL_SEC }) }}</p>
+                <section
+                  v-show="activeSettingsTab === 'alerts'"
+                  id="settings-panel-alerts"
+                  class="settings-section"
+                  role="tabpanel"
+                  aria-labelledby="settings-tab-alerts"
+                >
+                  <div class="settings-section-heading">
+                    <h3>{{ t('settings.section.alerts') }}</h3>
+                  </div>
 
-              <label for="github-token" class="token-label">{{ t('settings.githubToken') }}</label>
-              <div class="token-controls">
-                <input
-                  id="github-token"
-                  v-model="tokenInput"
-                  type="password"
-                  :placeholder="t('settings.githubToken.placeholder')"
-                  autocomplete="off"
-                  spellcheck="false"
-                />
-                <button type="button" @click="saveToken">{{ t('settings.githubToken.save') }}</button>
-                <button type="button" class="secondary" @click="clearToken">{{ t('settings.githubToken.clear') }}</button>
-              </div>
-              <p class="token-hint">{{ tokenMessage }}</p>
-              <p class="token-hint">
-                {{ t('settings.githubToken.howtoPrefix') }}
-                <a href="https://github.com/NTUT-NPC/tattoo-repoDashboard#%E5%AE%8C%E6%95%B4-github-token-%E7%94%B3%E8%AB%8B%E6%95%99%E5%AD%B8%E5%BB%BA%E8%AD%B0%E5%85%88%E7%9C%8B" target="_blank" rel="noreferrer noopener">
-                  {{ t('settings.githubToken.readmeLink') }}
-                </a>
-                {{ t('settings.githubToken.howtoSuffix') }}
-              </p>
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <span class="setting-title">{{ t('settings.desktopNotification') }}</span>
+                      <span class="setting-hint">{{ t('settings.desktopNotification.permissionState', { state: desktopNotificationPermissionText }) }}</span>
+                      <span class="setting-hint">{{ t('settings.desktopNotification.hint') }}</span>
+                    </div>
+                    <div class="settings-control settings-control-actions">
+                      <label class="toggle-control" for="desktop-notification-enabled">
+                        <input
+                          id="desktop-notification-enabled"
+                          v-model="desktopNotificationEnabled"
+                          type="checkbox"
+                          @change="applyDesktopNotificationSetting"
+                        />
+                        <span>{{ t('settings.desktopNotification.toggle') }}</span>
+                      </label>
+                      <button type="button" class="secondary" @click="requestDesktopNotificationPermission">{{ t('settings.desktopNotification.requestPermission') }}</button>
+                    </div>
+                  </div>
 
-              <label class="token-label">{{ t('settings.animationPreview') }}</label>
-              <div class="token-controls">
-                <button type="button" class="secondary" @click="previewLatestPrStatusAnimation">{{ t('settings.animationPreview.button') }}</button>
-              </div>
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <span class="setting-title">{{ t('settings.wakeLock') }}</span>
+                      <span class="setting-hint">{{ t('settings.wakeLock.status', { state: wakeLockStatusText }) }}</span>
+                      <span class="setting-hint">{{ t('settings.wakeLock.hint') }}</span>
+                    </div>
+                    <div class="settings-control settings-control-actions">
+                      <label class="toggle-control" for="screen-wake-lock-enabled">
+                        <input
+                          id="screen-wake-lock-enabled"
+                          v-model="screenWakeLockEnabled"
+                          type="checkbox"
+                          :disabled="!isWakeLockSupported"
+                          @change="applyScreenWakeLockSetting"
+                        />
+                        <span>{{ t('settings.wakeLock.toggle') }}</span>
+                      </label>
+                    </div>
+                  </div>
+                </section>
 
-              <label class="token-label">{{ t('settings.statusAnimationSound') }}</label>
-              <div class="token-controls refresh-controls notification-controls">
-                <label class="toggle-control" for="status-animation-sound-enabled">
-                  <input
-                    id="status-animation-sound-enabled"
-                    v-model="statusAnimationSoundEnabled"
-                    type="checkbox"
-                    @change="applyStatusAnimationSoundEnabled"
-                  />
-                  <span>{{ t('settings.statusAnimationSound.toggle') }}</span>
-                </label>
-              </div>
-              <div class="token-controls refresh-controls">
-                <input
-                  id="status-animation-sound-file"
-                  type="file"
-                  accept="audio/*"
-                  @change="uploadStatusAnimationSound"
-                />
-                <button type="button" class="secondary" @click="previewStatusAnimationSound">{{ t('settings.statusAnimationSound.preview') }}</button>
-                <button type="button" class="secondary" @click="clearCustomStatusAnimationSound">{{ t('settings.statusAnimationSound.reset') }}</button>
-              </div>
-              <p class="token-hint">{{ t('settings.statusAnimationSound.current', { name: statusAnimationSoundLabel }) }}</p>
+                <section
+                  v-show="activeSettingsTab === 'access'"
+                  id="settings-panel-access"
+                  class="settings-section"
+                  role="tabpanel"
+                  aria-labelledby="settings-tab-access"
+                >
+                  <div class="settings-section-heading">
+                    <h3>{{ t('settings.section.access') }}</h3>
+                  </div>
 
-              <label for="status-animation-close-delay" class="token-label">{{ t('settings.statusAnimationCloseDelay') }}</label>
-              <div class="token-controls refresh-controls">
-                <input
-                  id="status-animation-close-delay"
-                  v-model.number="statusAnimationCloseDelayInputSec"
-                  type="number"
-                  :min="MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC"
-                  :max="MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC"
-                  step="1"
-                />
-                <button type="button" @click="applyStatusAnimationCloseDelay">{{ t('settings.apply') }}</button>
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <label for="github-token" class="setting-title">{{ t('settings.githubToken') }}</label>
+                      <span class="setting-hint">
+                        {{ t('settings.githubToken.howtoPrefix') }}
+                        <a href="https://github.com/NTUT-NPC/tattoo-repoDashboard#%E5%AE%8C%E6%95%B4-github-token-%E7%94%B3%E8%AB%8B%E6%95%99%E5%AD%B8%E5%BB%BA%E8%AD%B0%E5%85%88%E7%9C%8B" target="_blank" rel="noreferrer noopener">
+                          {{ t('settings.githubToken.readmeLink') }}
+                        </a>
+                        {{ t('settings.githubToken.howtoSuffix') }}
+                      </span>
+                    </div>
+                    <div class="settings-control settings-control-actions token-entry">
+                      <input
+                        id="github-token"
+                        v-model="tokenInput"
+                        type="password"
+                        :placeholder="t('settings.githubToken.placeholder')"
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                      <button type="button" @click="saveToken">{{ t('settings.githubToken.save') }}</button>
+                      <button type="button" class="secondary" @click="clearToken">{{ t('settings.githubToken.clear') }}</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section
+                  v-show="activeSettingsTab === 'animation'"
+                  id="settings-panel-animation"
+                  class="settings-section"
+                  role="tabpanel"
+                  aria-labelledby="settings-tab-animation"
+                >
+                  <div class="settings-section-heading">
+                    <h3>{{ t('settings.section.animation') }}</h3>
+                  </div>
+
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <span class="setting-title">{{ t('settings.animationPreview') }}</span>
+                    </div>
+                    <div class="settings-control settings-control-actions">
+                      <button type="button" class="secondary" @click="previewLatestPrStatusAnimation">{{ t('settings.animationPreview.button') }}</button>
+                    </div>
+                  </div>
+
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <span class="setting-title">{{ t('settings.statusAnimationSound') }}</span>
+                      <span class="setting-hint">{{ t('settings.statusAnimationSound.current', { name: statusAnimationSoundLabel }) }}</span>
+                    </div>
+                    <div class="settings-control settings-control-actions">
+                      <label class="toggle-control" for="status-animation-sound-enabled">
+                        <input
+                          id="status-animation-sound-enabled"
+                          v-model="statusAnimationSoundEnabled"
+                          type="checkbox"
+                          @change="applyStatusAnimationSoundEnabled"
+                        />
+                        <span>{{ t('settings.statusAnimationSound.toggle') }}</span>
+                      </label>
+                      <input
+                        id="status-animation-sound-file"
+                        class="file-input"
+                        type="file"
+                        accept="audio/*"
+                        @change="uploadStatusAnimationSound"
+                      />
+                      <label class="file-picker" for="status-animation-sound-file">{{ t('settings.statusAnimationSound.upload') }}</label>
+                      <button type="button" class="secondary" @click="previewStatusAnimationSound">{{ t('settings.statusAnimationSound.preview') }}</button>
+                      <button type="button" class="secondary" @click="clearCustomStatusAnimationSound">{{ t('settings.statusAnimationSound.reset') }}</button>
+                    </div>
+                  </div>
+
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <label for="status-animation-close-delay" class="setting-title">{{ t('settings.statusAnimationCloseDelay') }}</label>
+                      <span class="setting-hint">{{ t('settings.statusAnimationCloseDelay.range', { min: MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC, max: MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC, def: DEFAULT_STATUS_ANIMATION_CLOSE_DELAY_SEC }) }}</span>
+                      <span class="setting-hint">{{ t('settings.statusAnimationCloseDelay.hint') }}</span>
+                    </div>
+                    <div class="settings-control settings-control-actions number-action">
+                      <input
+                        id="status-animation-close-delay"
+                        v-model.number="statusAnimationCloseDelayInputSec"
+                        type="number"
+                        :min="MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC"
+                        :max="MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC"
+                        step="1"
+                      />
+                      <button type="button" @click="applyStatusAnimationCloseDelay">{{ t('settings.apply') }}</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section
+                  v-show="activeSettingsTab === 'refresh'"
+                  id="settings-panel-refresh"
+                  class="settings-section"
+                  role="tabpanel"
+                  aria-labelledby="settings-tab-refresh"
+                >
+                  <div class="settings-section-heading">
+                    <h3>{{ t('settings.section.refresh') }}</h3>
+                  </div>
+
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <label for="refresh-interval" class="setting-title">{{ t('settings.refreshInterval') }}</label>
+                      <span class="setting-hint">{{ t('settings.refreshInterval.range', { min: MIN_REFRESH_INTERVAL_SEC, max: MAX_REFRESH_INTERVAL_SEC }) }}</span>
+                    </div>
+                    <div class="settings-control settings-control-actions number-action">
+                      <input
+                        id="refresh-interval"
+                        v-model.number="refreshIntervalInput"
+                        type="number"
+                        :min="MIN_REFRESH_INTERVAL_SEC"
+                        :max="MAX_REFRESH_INTERVAL_SEC"
+                        step="1"
+                      />
+                      <button type="button" @click="applyRefreshInterval">{{ t('settings.refreshInterval.apply') }}</button>
+                    </div>
+                  </div>
+
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <span class="setting-title">{{ t('settings.autoUpdateCheck') }}</span>
+                      <span class="setting-hint">{{ t('settings.autoUpdateCheck.range', { min: MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN, max: MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN, def: DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN }) }}</span>
+                      <span class="setting-hint">
+                        {{ t('settings.projectRepo') }}
+                        <a href="https://github.com/NTUT-NPC/tattoo-repoDashboard" target="_blank" rel="noreferrer noopener">
+                          github.com/NTUT-NPC/tattoo-repoDashboard
+                        </a>
+                      </span>
+                    </div>
+                    <div class="settings-control settings-control-actions">
+                      <label class="toggle-control" for="auto-update-check-enabled">
+                        <input id="auto-update-check-enabled" v-model="autoUpdateCheckEnabled" type="checkbox" @change="applyAutoUpdateCheckEnabled" />
+                        <span>{{ t('settings.autoUpdateCheck.toggle') }}</span>
+                      </label>
+                      <div class="number-action">
+                        <label class="sr-only" for="auto-update-check-interval">{{ t('settings.autoUpdateCheckInterval') }}</label>
+                        <input id="auto-update-check-interval" v-model.number="autoUpdateCheckIntervalMinInput" type="number" :min="MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN" :max="MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN" step="1" />
+                        <button type="button" @click="applyAutoUpdateCheckInterval">{{ t('settings.apply') }}</button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
               </div>
-              <p class="token-hint">{{ t('settings.statusAnimationCloseDelay.range', { min: MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC, max: MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC, def: DEFAULT_STATUS_ANIMATION_CLOSE_DELAY_SEC }) }}</p>
-              <p class="token-hint">{{ t('settings.statusAnimationCloseDelay.hint') }}</p>
-              <label class="token-label">{{ t('settings.autoUpdateCheck') }}</label>
-              <div class="token-controls refresh-controls notification-controls">
-                <label class="toggle-control" for="auto-update-check-enabled">
-                  <input id="auto-update-check-enabled" v-model="autoUpdateCheckEnabled" type="checkbox" @change="applyAutoUpdateCheckEnabled" />
-                  <span>{{ t('settings.autoUpdateCheck.toggle') }}</span>
-                </label>
-              </div>
-              <div class="token-controls refresh-controls">
-                <input id="auto-update-check-interval" v-model.number="autoUpdateCheckIntervalMinInput" type="number" :min="MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN" :max="MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN" step="1" />
-                <button type="button" @click="applyAutoUpdateCheckInterval">{{ t('settings.apply') }}</button>
-              </div>
-              <p class="token-hint">{{ t('settings.autoUpdateCheck.range', { min: MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN, max: MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN, def: DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN }) }}</p>
-              <p class="token-hint">
-                {{ t('settings.projectRepo') }}
-                <a href="https://github.com/NTUT-NPC/tattoo-repoDashboard" target="_blank" rel="noreferrer noopener">
-                  github.com/NTUT-NPC/tattoo-repoDashboard
-                </a>
-              </p>
             </div>
           </div>
         </section>
@@ -317,6 +497,7 @@ const MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN = 1000;
 
 type ActivityDisplayMode = 'separate' | 'latest';
 type DateDisplayMode = 'smart' | 'full';
+type SettingsTab = 'general' | 'alerts' | 'access' | 'animation' | 'refresh';
 type NavigatorWithWakeLock = Navigator & {
   wakeLock?: {
     request: (type: 'screen') => Promise<WakeLockSentinel>;
@@ -331,6 +512,7 @@ const errorKey = ref<MessageKey | ''>('');
 const isUpdating = ref(false);
 const lastUpdatedAt = ref<Date | null>(null);
 const showTokenPanel = ref(false);
+const activeSettingsTab = ref<SettingsTab>('general');
 const hasTokenSaved = ref(false);
 const tokenInput = ref('');
 const tokenMessageState = ref<
@@ -483,13 +665,24 @@ function readAutoUpdateCheckIntervalMinFromStorage() {
 function applyAutoUpdateCheckEnabled() {
   window.localStorage.setItem(AUTO_UPDATE_CHECK_ENABLED_STORAGE_KEY, String(autoUpdateCheckEnabled.value));
   restartAutoUpdateTimer();
+  setTokenMessage(autoUpdateCheckEnabled.value ? 'message.autoUpdate.enabled' : 'message.autoUpdate.disabled');
 }
 function applyAutoUpdateCheckInterval() {
-  if (!Number.isInteger(autoUpdateCheckIntervalMinInput.value)) return;
-  if (autoUpdateCheckIntervalMinInput.value < MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN || autoUpdateCheckIntervalMinInput.value > MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN) return;
+  if (!Number.isInteger(autoUpdateCheckIntervalMinInput.value)) {
+    setTokenMessage('message.autoUpdate.intervalInteger');
+    return;
+  }
+  if (autoUpdateCheckIntervalMinInput.value < MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN || autoUpdateCheckIntervalMinInput.value > MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN) {
+    setTokenMessage('message.autoUpdate.intervalRange', {
+      min: MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN,
+      max: MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN,
+    });
+    return;
+  }
   autoUpdateCheckIntervalMin.value = autoUpdateCheckIntervalMinInput.value;
   window.localStorage.setItem(AUTO_UPDATE_CHECK_INTERVAL_MIN_STORAGE_KEY, String(autoUpdateCheckIntervalMin.value));
   restartAutoUpdateTimer();
+  setTokenMessage('message.autoUpdate.intervalApplied', { min: autoUpdateCheckIntervalMin.value });
 }
 
 async function checkRepoDashboardUpdate() {
@@ -685,9 +878,7 @@ async function applyScreenWakeLockSetting() {
 
 function applyStatusAnimationSoundEnabled() {
   window.localStorage.setItem(STATUS_ANIMATION_SOUND_ENABLED_STORAGE_KEY, String(statusAnimationSoundEnabled.value));
-  setTokenMessageText(statusAnimationSoundEnabled.value
-    ? '已啟用 PR 狀態更新音效。'
-    : '已關閉 PR 狀態更新音效。');
+  setTokenMessage(statusAnimationSoundEnabled.value ? 'message.statusAnimation.soundEnabled' : 'message.statusAnimation.soundDisabled');
 }
 
 async function uploadStatusAnimationSound(event: Event) {
@@ -696,7 +887,7 @@ async function uploadStatusAnimationSound(event: Event) {
   if (!file) return;
 
   if (!file.type.startsWith('audio/')) {
-    setTokenMessageText('請選擇音訊檔案（audio/*）。');
+    setTokenMessage('message.statusAnimation.soundInvalidFile');
     input.value = '';
     return;
   }
@@ -712,7 +903,7 @@ async function uploadStatusAnimationSound(event: Event) {
   });
 
   if (!fileDataUrl) {
-    setTokenMessageText('讀取音效檔案失敗，請重新上傳。');
+    setTokenMessage('message.statusAnimation.soundReadFailed');
     input.value = '';
     return;
   }
@@ -722,7 +913,7 @@ async function uploadStatusAnimationSound(event: Event) {
   window.localStorage.setItem(STATUS_ANIMATION_SOUND_DATA_URL_STORAGE_KEY, customStatusAnimationSoundDataUrl.value);
   window.localStorage.setItem(STATUS_ANIMATION_SOUND_NAME_STORAGE_KEY, customStatusAnimationSoundName.value);
   statusAnimationAudio = null;
-  setTokenMessageText(`已套用自訂音效：${file.name}`);
+  setTokenMessage('message.statusAnimation.soundUploaded', { name: file.name });
   input.value = '';
 }
 
@@ -732,7 +923,7 @@ function clearCustomStatusAnimationSound() {
   window.localStorage.removeItem(STATUS_ANIMATION_SOUND_DATA_URL_STORAGE_KEY);
   window.localStorage.removeItem(STATUS_ANIMATION_SOUND_NAME_STORAGE_KEY);
   statusAnimationAudio = null;
-  setTokenMessageText('已恢復預設音效 cash.mp3。');
+  setTokenMessage('message.statusAnimation.soundReset', { name: DEFAULT_STATUS_ANIMATION_SOUND_NAME });
 }
 
 async function playStatusAnimationSound() {
@@ -756,7 +947,7 @@ async function playStatusAnimationSound() {
 
 function previewStatusAnimationSound() {
   void playStatusAnimationSound();
-  setTokenMessageText(`已嘗試播放音效：${statusAnimationSoundLabel.value}`);
+  setTokenMessage('message.statusAnimation.soundPreview', { name: statusAnimationSoundLabel.value });
 }
 
 function handleVisibilityChange() {
@@ -890,12 +1081,20 @@ function continueWithAnonymousMode() {
 
 function openSettingsFromOnboarding() {
   dismissOnboardingModal();
+  activeSettingsTab.value = 'access';
   showTokenPanel.value = true;
 }
 
 function handleEscape(event: KeyboardEvent) {
-  if (event.key === 'Escape' && selectedPr.value) {
+  if (event.key !== 'Escape') return;
+
+  if (selectedPr.value) {
     closePrDetails();
+    return;
+  }
+
+  if (showTokenPanel.value) {
+    showTokenPanel.value = false;
   }
 }
 
@@ -1264,7 +1463,7 @@ code { color:#93c5fd; }
 }
 
 .settings-card {
-  width: min(96vw, 1100px);
+  width: min(100%, 1100px);
   min-height: min(86vh, 860px);
   max-height: 94vh;
   border: 1px solid #2b3f72;
@@ -1283,8 +1482,12 @@ code { color:#93c5fd; }
 }
 
 .onboarding-card {
-  width: min(96vw, 680px);
+  width: min(100%, 680px);
   min-height: auto;
+}
+
+.onboarding-card .settings-content {
+  padding: .9rem .95rem 1.1rem;
 }
 
 .settings-toolbar {
@@ -1302,10 +1505,258 @@ code { color:#93c5fd; }
   font-size: 1.02rem;
 }
 
+.settings-toolbar-status {
+  margin: .2rem 0 0;
+  max-width: min(720px, 70vw);
+  color: #a7f3d0;
+  font-size: .78rem;
+  line-height: 1.35;
+}
+
+.settings-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 184px minmax(0, 1fr);
+  background: rgba(15, 23, 42, .28);
+}
+
+.settings-nav {
+  min-height: 0;
+  padding: .85rem .75rem;
+  border-right: 1px solid rgba(148, 163, 184, .16);
+  background: rgba(2, 6, 23, .26);
+  display: grid;
+  align-content: start;
+  gap: .4rem;
+}
+
+.settings-nav button {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: .84rem;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: .55rem .65rem;
+  text-align: left;
+}
+
+.settings-nav button:hover,
+.settings-nav button:focus-visible {
+  border-color: rgba(96, 165, 250, .36);
+  background: rgba(30, 41, 59, .78);
+  color: #eff6ff;
+  outline: none;
+}
+
+.settings-nav button.active {
+  border-color: rgba(34, 197, 94, .48);
+  background: rgba(20, 83, 45, .34);
+  color: #dcfce7;
+}
+
 .settings-content {
-  padding: .9rem .95rem 1.1rem;
+  padding: .35rem .95rem 1.1rem;
   overflow-y: auto;
   min-height: 0;
+  scroll-behavior: smooth;
+}
+
+.settings-section {
+  scroll-margin-top: .55rem;
+  padding: .7rem 0 .35rem;
+}
+
+.settings-section-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 0 .35rem;
+  padding: .55rem 0 .45rem;
+  background: linear-gradient(180deg, #111a33 70%, rgba(17, 26, 51, 0));
+}
+
+.settings-section-heading h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: .9rem;
+  letter-spacing: 0;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(220px, .8fr) minmax(260px, 1.2fr);
+  gap: .9rem;
+  align-items: start;
+  padding: .82rem 0;
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid rgba(51, 65, 85, .72);
+}
+
+.settings-copy {
+  min-width: 0;
+  display: grid;
+  gap: .28rem;
+}
+
+.setting-title {
+  display: block;
+  color: #e2e8f0;
+  font-size: .88rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.setting-hint {
+  color: #aab7ca;
+  font-size: .78rem;
+  line-height: 1.45;
+}
+
+.setting-hint a {
+  color: #93c5fd;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.settings-control {
+  min-width: 0;
+  display: grid;
+  gap: .55rem;
+}
+
+.settings-control select,
+.settings-control input[type="number"],
+.settings-control input[type="password"] {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #020617;
+  color: #e2e8f0;
+  font: inherit;
+  padding: .48rem .62rem;
+}
+
+.settings-control select:focus-visible,
+.settings-control input:focus-visible {
+  border-color: #60a5fa;
+  outline: 2px solid rgba(96, 165, 250, .28);
+  outline-offset: 1px;
+}
+
+.settings-control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+}
+
+.settings-control-actions > .toggle-control {
+  flex: 1 1 260px;
+}
+
+.settings-control button,
+.file-picker {
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  background: #1d4ed8;
+  color: #dbeafe;
+  cursor: pointer;
+  font-size: .84rem;
+  font-weight: 800;
+  line-height: 1.2;
+  padding: .55rem .72rem;
+}
+
+.settings-control button.secondary,
+.file-picker {
+  border-color: #3f4d63;
+  background: #1e293b;
+  color: #d7dde8;
+}
+
+.settings-control button:hover,
+.file-picker:hover {
+  filter: brightness(1.08);
+}
+
+.number-action {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.number-action input[type="number"] {
+  max-width: 160px;
+}
+
+.token-entry input[type="password"] {
+  flex: 1 1 280px;
+}
+
+.segmented-control {
+  display: grid;
+  gap: .45rem;
+}
+
+.segmented-control label {
+  position: relative;
+  display: grid;
+  min-height: 38px;
+  align-items: center;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: rgba(2, 6, 23, .72);
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: .8rem;
+  font-weight: 700;
+  line-height: 1.35;
+  padding: .55rem .68rem;
+}
+
+.segmented-control label.active {
+  border-color: rgba(34, 197, 94, .58);
+  background: rgba(20, 83, 45, .34);
+  color: #dcfce7;
+}
+
+.segmented-control input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segmented-control label:focus-within {
+  outline: 2px solid rgba(96, 165, 250, .42);
+  outline-offset: 2px;
+}
+
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .settings-modal-enter-active,
@@ -1398,6 +1849,47 @@ code { color:#93c5fd; }
 
 @media (max-width: 760px) {
   .detail-card-wrap { width: min(1120px, calc(100vw - 2rem)); }
+  .settings-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .settings-nav {
+    display: flex;
+    gap: .35rem;
+    overflow-x: auto;
+    padding: .55rem .65rem;
+    border-right: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, .16);
+  }
+
+  .settings-nav button {
+    width: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .settings-content {
+    padding: .25rem .75rem .95rem;
+  }
+
+  .settings-row {
+    grid-template-columns: 1fr;
+    gap: .55rem;
+    padding: .78rem 0;
+  }
+
+  .settings-control-actions > .toggle-control {
+    flex-basis: 100%;
+  }
+
+  .number-action {
+    flex-wrap: wrap;
+  }
+
+  .number-action input[type="number"] {
+    max-width: 150px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1417,6 +1909,14 @@ code { color:#93c5fd; }
     min-height: calc(100vh - 1.1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     max-height: calc(100vh - 1.1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     border-radius: 12px;
+  }
+
+  .settings-toolbar {
+    padding: .75rem .8rem;
+  }
+
+  .settings-toolbar-status {
+    max-width: calc(100vw - 5.2rem);
   }
 
   @supports (height: 100dvh) {
