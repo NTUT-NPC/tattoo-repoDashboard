@@ -49,68 +49,80 @@
 
     <section v-if="cinematic" class="detail-panel">
       <h3 class="detail-heading">{{ t('prCard.details') }}</h3>
-      <div class="detail-hero">
-        <div class="hero-main">
-          <p class="hero-title">{{ t('prCard.updatedAt', { time: formatDate(pr.updatedAt) }) }}</p>
-          <p class="hero-subtitle">#{{ pr.number }} · {{ pr.author.login }}</p>
-        </div>
-        <a :href="pr.url" target="_blank" rel="noreferrer" class="hero-open-link">{{ t('prCard.openOnGitHub') }} ↗</a>
+      <div class="detail-overview">
+        <p class="detail-overview-item">
+          <span class="detail-label">{{ t('prCard.overview.pr') }}</span>
+          <a :href="pr.url" target="_blank" rel="noreferrer" class="detail-value detail-link">#{{ pr.number }}</a>
+        </p>
+        <p class="detail-overview-item">
+          <span class="detail-label">{{ t('prCard.overview.updated') }}</span>
+          <span class="detail-value">{{ formatDate(pr.updatedAt) }}</span>
+        </p>
+        <p class="detail-overview-item">
+          <span class="detail-label">{{ t('prCard.overview.branch') }}</span>
+          <span class="detail-value branch-text">{{ pr.branchName }}</span>
+        </p>
+        <p v-if="pr.linkedIssue" class="detail-overview-item">
+          <span class="detail-label">{{ t('prCard.overview.issue') }}</span>
+          <span class="detail-value">#{{ pr.linkedIssue }}</span>
+        </p>
       </div>
       <div class="detail-content">
-        <a
-          v-if="activityDisplayMode === 'separate' && pr.latestCommit"
-          :href="pr.latestCommit.url"
-          target="_blank"
-          rel="noreferrer"
-          class="detail-link detail-block"
-          :title="pr.latestCommit.message"
-        >
-          <strong>{{ t('prCard.detailLabel.commit') }}</strong>
-          <span>{{ t('prCard.latestCommit', { message: pr.latestCommit.message }) }}</span>
-        </a>
-        <a
-          v-if="activityDisplayMode === 'separate' && pr.latestComment"
-          :href="pr.latestComment.url"
-          target="_blank"
-          rel="noreferrer"
-          class="detail-link detail-block"
-          :title="pr.latestComment.body"
-        >
-          <strong>{{ t('prCard.detailLabel.comment') }}</strong>
-          <span>{{ t('prCard.latestComment', { message: truncate(pr.latestComment.body.replace(/\n/g, ' '), 200) }) }}</span>
-        </a>
-        <a
-          v-if="activityDisplayMode === 'latest' && latestActivity"
-          :href="latestActivity.url"
-          target="_blank"
-          rel="noreferrer"
-          class="detail-link detail-block"
-          :title="latestActivity.preview"
-        >
-          <strong>{{ latestActivity.type === 'commit' ? t('prCard.activity.commit') : t('prCard.activity.comment') }}</strong>
-          <span>
+        <h4 class="detail-subheading">{{ t('prCard.section.activity') }}</h4>
+        <div class="detail-block">
+          <a
+            v-if="activityDisplayMode === 'separate' && pr.latestCommit"
+            :href="pr.latestCommit.url"
+            target="_blank"
+            rel="noreferrer"
+            class="detail-link"
+            :title="pr.latestCommit.message"
+          >
+            {{ t('prCard.latestCommit', { message: pr.latestCommit.message }) }}
+          </a>
+          <a
+            v-if="activityDisplayMode === 'separate' && pr.latestComment"
+            :href="pr.latestComment.url"
+            target="_blank"
+            rel="noreferrer"
+            class="detail-link"
+            :title="pr.latestComment.body"
+          >
+            {{ t('prCard.latestComment', { message: truncate(pr.latestComment.body.replace(/\n/g, ' '), 200) }) }}
+          </a>
+          <a
+            v-if="activityDisplayMode === 'latest' && latestActivity"
+            :href="latestActivity.url"
+            target="_blank"
+            rel="noreferrer"
+            class="detail-link"
+            :title="latestActivity.preview"
+          >
             {{
               t('prCard.latestActivity', {
                 type: latestActivity.type === 'commit' ? t('prCard.activity.commit') : t('prCard.activity.comment'),
                 message: truncate(latestActivity.preview.replace(/\n/g, ' '), 200),
               })
             }}
-          </span>
-        </a>
-        <div v-if="pr.ciStates.length" class="detail-ci-list">
-          <template v-for="item in pr.ciStates" :key="item.name">
-            <a
-              v-if="item.url"
-              class="detail-link ci-link detail-block"
-              :href="item.url"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <strong>{{ t('prCard.detailLabel.ci') }}</strong>
-              <span>{{ item.name }} · {{ item.conclusion ?? item.status }}</span>
-            </a>
-            <span v-else class="detail-text detail-block"><strong>{{ t('prCard.detailLabel.ci') }}</strong><span>{{ item.name }} · {{ item.conclusion ?? item.status }}</span></span>
-          </template>
+          </a>
+          <p v-if="!latestActivity && !pr.latestCommit && !pr.latestComment" class="detail-text">{{ t('prCard.noRecentActivity') }}</p>
+        </div>
+        <div v-if="pr.ciStates.length" class="detail-block">
+          <h4 class="detail-subheading">{{ t('prCard.section.checks') }}</h4>
+          <div class="detail-ci-list">
+            <template v-for="item in pr.ciStates" :key="item.name">
+              <a
+                v-if="item.url"
+                class="detail-link ci-link"
+                :href="item.url"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {{ item.name }} · {{ item.conclusion ?? item.status }}
+              </a>
+              <span v-else class="detail-text">{{ item.name }} · {{ item.conclusion ?? item.status }}</span>
+            </template>
+          </div>
         </div>
       </div>
     </section>
@@ -362,40 +374,57 @@ const statusClass = computed(() => {
 .avatar { width:16px; height:16px; border-radius:999px; border:1px solid #334155; }
 .bottom { display:flex; justify-content:flex-end; align-items:center; gap:.4rem; margin-top:auto; }
 .detail-panel { border-top:1px solid #233154; padding-top:.4rem; }
-.detail-heading { margin: 0; font-size: .82rem; color: #93c5fd; }
-.detail-hero {
-  margin-top: .45rem;
-  border: 1px solid #334a7f;
-  border-radius: 10px;
-  background: linear-gradient(145deg, rgba(30, 64, 175, .25), rgba(15, 23, 42, .4));
-  padding: .6rem .72rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: .6rem;
-}
-.hero-main { min-width: 0; }
-.hero-title { margin: 0; font-weight: 700; color: #dbeafe; }
-.hero-subtitle { margin: .2rem 0 0; color: #93c5fd; font-size: .78em; }
-.hero-open-link { color: #bfdbfe; text-decoration: none; font-size: .82em; white-space: nowrap; }
-.detail-content { display:flex; flex-direction:column; gap:.3rem; margin-top:.4rem; }
-.detail-link { color:#e2e8f0; text-decoration:none; font-size:.78rem; }
-.detail-text { margin: 0; font-size: .8rem; color: #cbd5e1; }
-.detail-block {
-  border: 1px solid #2d3f6f;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, .42);
-  padding: .5rem .62rem;
+.detail-heading { margin: 0; font-size: .82rem; color: #93c5fd; text-transform: uppercase; letter-spacing: .08em; }
+.detail-overview {
+  margin-top: .5rem;
   display: grid;
-  gap: .18rem;
+  gap: .45rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
-.detail-block strong {
-  color: #93c5fd;
-  font-size: .76em;
+.detail-overview-item {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  background: #111d37;
+  border: 1px solid #2b3f72;
+  border-radius: 10px;
+  padding: .35rem .5rem;
+}
+.detail-label { color: #93c5fd; font-size: .85em; }
+.detail-value { color: #e2e8f0; font-size: .82rem; }
+.branch-text { word-break: break-all; }
+.detail-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  gap: .5rem;
+  margin-top: .4rem;
+}
+.detail-block {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .34rem;
+}
+.detail-subheading {
+  margin: .25rem 0 .1rem;
+  color: #bfdbfe;
+  font-size: .76rem;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: .06em;
 }
-.detail-ci-list { display: flex; flex-direction: column; gap: .3rem; }
+.detail-link {
+  color:#e2e8f0;
+  text-decoration:none;
+  font-size:.78rem;
+  background: rgba(30, 41, 59, 0.82);
+  border: 1px solid #30446f;
+  border-radius: 10px;
+  padding: .36rem .5rem;
+}
+.detail-link:hover { border-color: #5b83da; background: rgba(37, 53, 86, 0.9); }
+.detail-text { margin: 0; font-size: .8rem; color: #cbd5e1; }
+.detail-ci-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .38rem; }
 .ci-link { color: #bfdbfe; }
 
 .pr-card.cinematic {
@@ -431,17 +460,11 @@ const statusClass = computed(() => {
 .pr-card.cinematic .detail-heading { font-size: clamp(.92rem, .74rem + .5vw, 1.15rem); }
 .pr-card.cinematic .detail-link { font-size: clamp(.92rem, .74rem + .5vw, 1.14rem); }
 .pr-card.cinematic .detail-text { font-size: clamp(.9rem, .72rem + .5vw, 1.14rem); }
+.pr-card.cinematic .detail-value { font-size: clamp(.88rem, .72rem + .45vw, 1.1rem); }
+.pr-card.cinematic .detail-subheading { font-size: clamp(.78rem, .66rem + .35vw, .98rem); }
 .pr-card.cinematic .detail-content {
-  max-height: clamp(120px, 22vh, 280px);
-  overflow-y: auto;
-  padding-right: .3rem;
+  padding-right: .2rem;
 }
-.pr-card.cinematic .detail-hero {
-  padding: clamp(.72rem, .6rem + .5vw, 1rem);
-}
-.pr-card.cinematic .hero-title { font-size: clamp(.95rem, .8rem + .5vw, 1.2rem); }
-.pr-card.cinematic .hero-subtitle,
-.pr-card.cinematic .hero-open-link { font-size: clamp(.82rem, .7rem + .35vw, 1rem); }
 
 .cinematic-overlay {
   position: relative;
@@ -534,6 +557,24 @@ const statusClass = computed(() => {
   .pr-card {
     min-height: 0;
     min-width: 0;
+  }
+
+  .detail-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-content {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-ci-list {
+    grid-template-columns: 1fr;
+  }
+
+  .pr-card.cinematic .detail-content {
+    overflow: visible;
+    max-height: none;
+    padding-right: 0;
   }
 }
 

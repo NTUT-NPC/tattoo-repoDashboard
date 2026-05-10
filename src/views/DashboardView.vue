@@ -438,9 +438,7 @@
           @click="handleDetailMaskClick"
         >
           <div class="detail-card-wrap">
-            <div class="detail-toolbar">
-              <button type="button" class="close-btn" :aria-label="t('aria.closeDetails')" @click="closePrDetails">✕</button>
-            </div>
+            <button type="button" class="close-btn close-btn-floating" :aria-label="t('aria.closeDetails')" @click="closePrDetails">✕</button>
             <PrCard
               :pr="selectedPr"
               cinematic
@@ -1789,8 +1787,6 @@ code { color:#93c5fd; }
   max-height: 92vh;
   margin-inline: auto;
   position: relative;
-  display: grid;
-  gap: .45rem;
   transform-origin: center;
   z-index: 1;
   border: 1px solid rgba(148, 197, 255, .28);
@@ -1811,7 +1807,6 @@ code { color:#93c5fd; }
   background: linear-gradient(180deg, rgba(15, 23, 42, .88), rgba(15, 23, 42, 0));
   border-radius: 12px 12px 0 0;
 }
-
 .detail-modal-enter-active,
 .detail-modal-leave-active {
   transition: background-color .34s ease, backdrop-filter .34s ease;
@@ -1848,7 +1843,6 @@ code { color:#93c5fd; }
 }
 
 .close-btn {
-  z-index: 1;
   width: 34px;
   height: 34px;
   border-radius: 999px;
@@ -1856,6 +1850,12 @@ code { color:#93c5fd; }
   background: rgba(15, 23, 42, .92);
   color: #e2e8f0;
   cursor: pointer;
+}
+.close-btn-floating {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
 }
 
 @media (max-width: 950px) and (orientation: landscape) {
@@ -1946,6 +1946,10 @@ code { color:#93c5fd; }
     max-height: calc(100vh - 1.1rem);
     border-radius: 14px;
     padding: .45rem;
+  }
+  .close-btn-floating {
+    top: 8px;
+    right: 8px;
   }
 }
 </style>
