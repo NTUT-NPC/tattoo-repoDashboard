@@ -49,78 +49,80 @@
 
     <section v-if="cinematic" class="detail-panel">
       <h3 class="detail-heading">{{ t('prCard.details') }}</h3>
-      <div class="detail-overview">
-        <p class="detail-overview-item">
-          <span class="detail-label">{{ t('prCard.overview.pr') }}</span>
-          <a :href="pr.url" target="_blank" rel="noreferrer" class="detail-value detail-link">#{{ pr.number }}</a>
-        </p>
-        <p class="detail-overview-item">
-          <span class="detail-label">{{ t('prCard.overview.updated') }}</span>
-          <span class="detail-value">{{ formatDate(pr.updatedAt) }}</span>
-        </p>
-        <p class="detail-overview-item">
-          <span class="detail-label">{{ t('prCard.overview.branch') }}</span>
-          <span class="detail-value branch-text">{{ pr.branchName }}</span>
-        </p>
-        <p v-if="pr.linkedIssue" class="detail-overview-item">
-          <span class="detail-label">{{ t('prCard.overview.issue') }}</span>
-          <span class="detail-value">#{{ pr.linkedIssue }}</span>
-        </p>
+      <div class="detail-hero">
+        <div class="hero-main">
+          <p class="hero-title">{{ t('prCard.updatedAt', { time: formatDate(pr.updatedAt) }) }}</p>
+          <p class="hero-subtitle">#{{ pr.number }} · {{ pr.author.login }}</p>
+        </div>
+        <a :href="pr.url" target="_blank" rel="noreferrer" class="hero-open-link">{{ t('prCard.openOnGitHub') }} ↗</a>
       </div>
       <div class="detail-content">
-        <h4 class="detail-subheading">{{ t('prCard.section.activity') }}</h4>
-        <div class="detail-block">
-          <a
-            v-if="activityDisplayMode === 'separate' && pr.latestCommit"
-            :href="pr.latestCommit.url"
-            target="_blank"
-            rel="noreferrer"
-            class="detail-link"
-            :title="pr.latestCommit.message"
-          >
-            {{ t('prCard.latestCommit', { message: pr.latestCommit.message }) }}
-          </a>
-          <a
-            v-if="activityDisplayMode === 'separate' && pr.latestComment"
-            :href="pr.latestComment.url"
-            target="_blank"
-            rel="noreferrer"
-            class="detail-link"
-            :title="pr.latestComment.body"
-          >
-            {{ t('prCard.latestComment', { message: truncate(pr.latestComment.body.replace(/\n/g, ' '), 200) }) }}
-          </a>
-          <a
-            v-if="activityDisplayMode === 'latest' && latestActivity"
-            :href="latestActivity.url"
-            target="_blank"
-            rel="noreferrer"
-            class="detail-link"
-            :title="latestActivity.preview"
-          >
+        <a
+          v-if="activityDisplayMode === 'separate' && pr.latestCommit"
+          :href="pr.latestCommit.url"
+          target="_blank"
+          rel="noreferrer"
+          class="detail-link detail-block"
+          :title="pr.latestCommit.message"
+        >
+          <strong>{{ t('prCard.detailLabel.commit') }}</strong>
+          <span>{{ t('prCard.latestCommit', { message: pr.latestCommit.message }) }}</span>
+        </a>
+        <a
+          v-if="activityDisplayMode === 'separate' && pr.latestComment"
+          :href="pr.latestComment.url"
+          target="_blank"
+          rel="noreferrer"
+          class="detail-link detail-block"
+          :title="pr.latestComment.body"
+        >
+          <strong>{{ t('prCard.detailLabel.comment') }}</strong>
+          <span>{{ t('prCard.latestComment', { message: truncate(pr.latestComment.body.replace(/\n/g, ' '), 200) }) }}</span>
+        </a>
+        <a
+          v-if="activityDisplayMode === 'latest' && latestActivity"
+          :href="latestActivity.url"
+          target="_blank"
+          rel="noreferrer"
+          class="detail-link detail-block"
+          :title="latestActivity.preview"
+        >
+          <strong>{{ latestActivity.type === 'commit' ? t('prCard.activity.commit') : t('prCard.activity.comment') }}</strong>
+          <span>
             {{
               t('prCard.latestActivity', {
                 type: latestActivity.type === 'commit' ? t('prCard.activity.commit') : t('prCard.activity.comment'),
                 message: truncate(latestActivity.preview.replace(/\n/g, ' '), 200),
               })
             }}
-          </a>
-          <p v-if="!latestActivity && !pr.latestCommit && !pr.latestComment" class="detail-text">{{ t('prCard.noRecentActivity') }}</p>
+          </span>
+        </a>
+        <div v-if="!latestActivity && !pr.latestCommit && !pr.latestComment" class="detail-block detail-empty">
+          <strong>{{ t('prCard.section.activity') }}</strong>
+          <span class="detail-text">{{ t('prCard.noRecentActivity') }}</span>
         </div>
-        <div v-if="pr.ciStates.length" class="detail-block">
-          <h4 class="detail-subheading">{{ t('prCard.section.checks') }}</h4>
-          <div class="detail-ci-list">
+        <div v-if="pr.ciStates.length" class="detail-ci-list detail-block">
+          <strong>{{ t('prCard.detailLabel.ci') }}</strong>
+          <div class="detail-ci-items">
             <template v-for="item in pr.ciStates" :key="item.name">
               <a
                 v-if="item.url"
-                class="detail-link ci-link"
+                class="detail-ci-item"
+                :class="ciToneClass(item)"
                 :href="item.url"
                 target="_blank"
                 rel="noreferrer"
+                :title="`${item.name} · ${item.conclusion ?? item.status}`"
               >
-                {{ item.name }} · {{ item.conclusion ?? item.status }}
+                <span class="ci-dot" aria-hidden="true"></span>
+                <span class="ci-name">{{ item.name }}</span>
+                <span class="ci-state">{{ item.conclusion ?? item.status }}</span>
               </a>
-              <span v-else class="detail-text">{{ item.name }} · {{ item.conclusion ?? item.status }}</span>
+              <span v-else class="detail-ci-item" :class="ciToneClass(item)" :title="`${item.name} · ${item.conclusion ?? item.status}`">
+                <span class="ci-dot" aria-hidden="true"></span>
+                <span class="ci-name">{{ item.name }}</span>
+                <span class="ci-state">{{ item.conclusion ?? item.status }}</span>
+              </span>
             </template>
           </div>
         </div>
@@ -246,6 +248,16 @@ function formatDate(value: string): string {
 function toTimestamp(value: string): number {
   const timestamp = new Date(value).getTime();
   return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+type CiState = PullRequestCard['ciStates'][number];
+
+function ciToneClass(item: CiState): string {
+  const state = (item.conclusion ?? item.status).toLowerCase();
+  if (state === 'success') return 'is-success';
+  if (['failure', 'timed_out', 'cancelled', 'action_required'].includes(state)) return 'is-failure';
+  if (['queued', 'requested', 'waiting', 'pending', 'in_progress'].includes(state)) return 'is-pending';
+  return 'is-neutral';
 }
 
 const separateActivities = computed(() => {
@@ -374,58 +386,84 @@ const statusClass = computed(() => {
 .avatar { width:16px; height:16px; border-radius:999px; border:1px solid #334155; }
 .bottom { display:flex; justify-content:flex-end; align-items:center; gap:.4rem; margin-top:auto; }
 .detail-panel { border-top:1px solid #233154; padding-top:.4rem; }
-.detail-heading { margin: 0; font-size: .82rem; color: #93c5fd; text-transform: uppercase; letter-spacing: .08em; }
-.detail-overview {
-  margin-top: .5rem;
-  display: grid;
-  gap: .45rem;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-.detail-overview-item {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: .45rem;
-  background: #111d37;
-  border: 1px solid #2b3f72;
+.detail-heading { margin: 0; font-size: .82rem; color: #93c5fd; }
+.detail-hero {
+  margin-top: .45rem;
+  border: 1px solid #334a7f;
   border-radius: 10px;
-  padding: .35rem .5rem;
+  background: linear-gradient(145deg, rgba(30, 64, 175, .25), rgba(15, 23, 42, .4));
+  padding: .6rem .72rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: .6rem;
 }
-.detail-label { color: #93c5fd; font-size: .85em; }
-.detail-value { color: #e2e8f0; font-size: .82rem; }
-.branch-text { word-break: break-all; }
-.detail-content {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
-  gap: .5rem;
-  margin-top: .4rem;
-}
+.hero-main { min-width: 0; }
+.hero-title { margin: 0; font-weight: 700; color: #dbeafe; }
+.hero-subtitle { margin: .2rem 0 0; color: #93c5fd; font-size: .78em; }
+.hero-open-link { color: #bfdbfe; text-decoration: none; font-size: .82em; white-space: nowrap; }
+.detail-content { display:flex; flex-direction:column; gap:.3rem; margin-top:.4rem; }
+.detail-link { color:#e2e8f0; text-decoration:none; font-size:.78rem; }
+.detail-text { margin: 0; font-size: .8rem; color: #cbd5e1; }
 .detail-block {
   min-width: 0;
+  border: 1px solid #2d3f6f;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, .42);
+  padding: .5rem .62rem;
+  display: grid;
+  gap: .18rem;
+}
+.detail-block strong {
+  color: #93c5fd;
+  font-size: .76em;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.detail-block span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.detail-ci-list { gap: .42rem; }
+.detail-ci-items {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: .34rem;
 }
-.detail-subheading {
-  margin: .25rem 0 .1rem;
-  color: #bfdbfe;
-  font-size: .76rem;
-  text-transform: uppercase;
-  letter-spacing: .06em;
+.detail-ci-item {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: .32rem;
+  border: 1px solid #2d3f6f;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .36);
+  color: #dbeafe;
+  text-decoration: none;
+  padding: .24rem .48rem;
+  font-size: .78rem;
+  line-height: 1.2;
 }
-.detail-link {
-  color:#e2e8f0;
-  text-decoration:none;
-  font-size:.78rem;
-  background: rgba(30, 41, 59, 0.82);
-  border: 1px solid #30446f;
-  border-radius: 10px;
-  padding: .36rem .5rem;
+.detail-ci-item:hover { border-color: #5b83da; background: rgba(37, 53, 86, .62); }
+.ci-dot {
+  width: .5em;
+  height: .5em;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  background: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, .14);
 }
-.detail-link:hover { border-color: #5b83da; background: rgba(37, 53, 86, 0.9); }
-.detail-text { margin: 0; font-size: .8rem; color: #cbd5e1; }
-.detail-ci-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .38rem; }
-.ci-link { color: #bfdbfe; }
+.ci-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 11rem;
+}
+.ci-state { color: #94a3b8; font-size: .82em; }
+.detail-ci-item.is-success .ci-dot { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .16); }
+.detail-ci-item.is-failure .ci-dot { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, .16); }
+.detail-ci-item.is-pending .ci-dot { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, .16); }
+.detail-ci-item.is-neutral .ci-dot { background: #94a3b8; box-shadow: 0 0 0 3px rgba(148, 163, 184, .14); }
 
 .pr-card.cinematic {
   height: min(80vh, 680px);
@@ -439,6 +477,8 @@ const statusClass = computed(() => {
   gap: clamp(.75rem, 1.1vw, 1.2rem);
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(96, 165, 250, .6) rgba(15, 23, 42, .22);
 }
 
 .pr-card.cinematic .top,
@@ -460,10 +500,40 @@ const statusClass = computed(() => {
 .pr-card.cinematic .detail-heading { font-size: clamp(.92rem, .74rem + .5vw, 1.15rem); }
 .pr-card.cinematic .detail-link { font-size: clamp(.92rem, .74rem + .5vw, 1.14rem); }
 .pr-card.cinematic .detail-text { font-size: clamp(.9rem, .72rem + .5vw, 1.14rem); }
-.pr-card.cinematic .detail-value { font-size: clamp(.88rem, .72rem + .45vw, 1.1rem); }
-.pr-card.cinematic .detail-subheading { font-size: clamp(.78rem, .66rem + .35vw, .98rem); }
+.pr-card.cinematic .detail-ci-item { font-size: clamp(.82rem, .68rem + .42vw, 1rem); }
 .pr-card.cinematic .detail-content {
-  padding-right: .2rem;
+  max-height: clamp(120px, 22vh, 280px);
+  overflow-y: auto;
+  padding-right: .3rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(96, 165, 250, .58) rgba(15, 23, 42, .24);
+}
+.pr-card.cinematic .detail-hero {
+  padding: clamp(.72rem, .6rem + .5vw, 1rem);
+}
+.pr-card.cinematic .hero-title { font-size: clamp(.95rem, .8rem + .5vw, 1.2rem); }
+.pr-card.cinematic .hero-subtitle,
+.pr-card.cinematic .hero-open-link { font-size: clamp(.82rem, .7rem + .35vw, 1rem); }
+
+.pr-card.cinematic::-webkit-scrollbar,
+.pr-card.cinematic .detail-content::-webkit-scrollbar { width: 8px; }
+
+.pr-card.cinematic::-webkit-scrollbar-track,
+.pr-card.cinematic .detail-content::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, .22);
+  border-radius: 999px;
+}
+
+.pr-card.cinematic::-webkit-scrollbar-thumb,
+.pr-card.cinematic .detail-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(96, 165, 250, .75), rgba(30, 64, 175, .72));
+  border-radius: 999px;
+  border: 2px solid rgba(15, 23, 42, .45);
+}
+
+.pr-card.cinematic::-webkit-scrollbar-thumb:hover,
+.pr-card.cinematic .detail-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(147, 197, 253, .9), rgba(37, 99, 235, .84));
 }
 
 .cinematic-overlay {
@@ -553,28 +623,77 @@ const statusClass = computed(() => {
   100% { transform: translateY(-42vh) translateX(48px) rotate(380deg); opacity: 0; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   .pr-card {
     min-height: 0;
     min-width: 0;
   }
 
-  .detail-overview {
-    grid-template-columns: 1fr;
-  }
-
-  .detail-content {
-    grid-template-columns: 1fr;
-  }
-
-  .detail-ci-list {
-    grid-template-columns: 1fr;
+  .pr-card.cinematic {
+    height: auto;
+    max-height: none;
+    overflow: visible;
   }
 
   .pr-card.cinematic .detail-content {
     overflow: visible;
     max-height: none;
     padding-right: 0;
+  }
+}
+
+@media (min-width: 761px) {
+  .pr-card.cinematic {
+    display: grid;
+    grid-template-columns: minmax(0, .95fr) minmax(360px, 1.05fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .pr-card.cinematic .cinematic-overlay {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .pr-card.cinematic .top {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .pr-card.cinematic .title {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .pr-card.cinematic .summary {
+    grid-column: 1;
+    grid-row: 4;
+    align-self: start;
+  }
+
+  .pr-card.cinematic .bottom {
+    grid-column: 1;
+    grid-row: 5;
+    width: 100%;
+  }
+
+  .pr-card.cinematic .detail-panel {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: stretch;
+    min-height: 0;
+    border-top: 0;
+    border-left: 1px solid #233154;
+    padding-top: 0;
+    padding-left: clamp(.9rem, 1.2vw, 1.35rem);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pr-card.cinematic .detail-content {
+    flex: 1;
+    max-height: none;
   }
 }
 
