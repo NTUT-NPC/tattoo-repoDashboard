@@ -485,6 +485,7 @@ const DEFAULT_STATUS_ANIMATION_SOUND_NAME = 'cash.mp3';
 const DEFAULT_STATUS_ANIMATION_CLOSE_DELAY_SEC = 8;
 const MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC = 3;
 const MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC = 20;
+const MERGE_STATE_ANIMATION_PRIORITY_WAIT_MS = 800;
 const STATUS_ANIMATION_CLOSE_DELAY_STORAGE_KEY = 'tattoo-dashboard-pr-status-close-delay-sec';
 const ONBOARDING_DISMISSED_STORAGE_KEY = 'tattoo-dashboard-onboarding-dismissed';
 const AUTO_UPDATE_CHECK_ENABLED_STORAGE_KEY = 'tattoo-dashboard-auto-update-check-enabled';
@@ -500,6 +501,12 @@ type NavigatorWithWakeLock = Navigator & {
   wakeLock?: {
     request: (type: 'screen') => Promise<WakeLockSentinel>;
   };
+};
+type StatusAnimationEvent = {
+  pr: PullRequestCard;
+  effect: 'new_pr' | 'ci_complete' | 'merged';
+  message: string;
+  ciSummary?: Array<{ name: string; result: 'success' | 'failure' }>;
 };
 
 const { t, intlLocale, resolvedLocale, languageMode, setLanguageMode } = useI18n();
@@ -1140,12 +1147,7 @@ function areAllCiStatesCompleted(pr: PullRequestCard) {
   });
 }
 
-function triggerPrStatusAnimation(params: {
-  pr: PullRequestCard;
-  effect: 'new_pr' | 'ci_complete' | 'merged';
-  message: string;
-  ciSummary?: Array<{ name: string; result: 'success' | 'failure' }>;
-}) {
+function triggerPrStatusAnimation(params: StatusAnimationEvent) {
   if (previewCloseTimer) clearTimeout(previewCloseTimer);
 
   showTokenPanel.value = false;
@@ -1167,14 +1169,8 @@ function triggerPrStatusAnimation(params: {
   }, statusAnimationCloseDelaySec.value * 1000);
 }
 
-async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentPrs: PullRequestCard[]) {
-  if (!previousPrs.length || !currentPrs.length) return null;
-
-  const previousById = new Map(previousPrs.map((pr) => [pr.id, pr]));
-  const currentIds = new Set(currentPrs.map((pr) => pr.id));
-  const removedPrs = previousPrs.filter((pr) => !currentIds.has(pr.id));
-
-  for (const removedPr of removedPrs) {
+async function findMergedPrStatusAnimationEvent(removedPrs: PullRequestCard[]): Promise<StatusAnimationEvent | null> {
+  const mergeEvents = await Promise.all(removedPrs.map(async (removedPr) => {
     try {
       const mergeState = await fetchPullRequestMergeState(removedPr.number);
       if (mergeState.merged) {
@@ -1187,8 +1183,16 @@ async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentP
     } catch (mergeError) {
       console.warn(`failed to check merge state for PR #${removedPr.number}`, mergeError);
     }
-  }
+    return null;
+  }));
 
+  return mergeEvents.find((event): event is StatusAnimationEvent => Boolean(event)) ?? null;
+}
+
+function findImmediateStatusAnimationEvent(
+  previousById: Map<number, PullRequestCard>,
+  currentPrs: PullRequestCard[],
+): StatusAnimationEvent | null {
   const newPr = currentPrs.find((pr) => !previousById.has(pr.id));
   if (newPr) {
     return {
@@ -1213,6 +1217,32 @@ async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentP
   }
 
   return null;
+}
+
+async function findStatusAnimationEvent(
+  previousPrs: PullRequestCard[],
+  currentPrs: PullRequestCard[],
+): Promise<StatusAnimationEvent | null> {
+  if (!previousPrs.length) return null;
+
+  const previousById = new Map(previousPrs.map((pr) => [pr.id, pr]));
+  const currentIds = new Set(currentPrs.map((pr) => pr.id));
+  const removedPrs = previousPrs.filter((pr) => !currentIds.has(pr.id));
+  const immediateEvent = findImmediateStatusAnimationEvent(previousById, currentPrs);
+
+  if (!removedPrs.length) return immediateEvent;
+
+  const mergedPrEventPromise = findMergedPrStatusAnimationEvent(removedPrs);
+  if (!immediateEvent) return mergedPrEventPromise;
+
+  const mergedPrEvent = await Promise.race([
+    mergedPrEventPromise,
+    new Promise<null>((resolve) => {
+      window.setTimeout(() => resolve(null), MERGE_STATE_ANIMATION_PRIORITY_WAIT_MS);
+    }),
+  ]);
+
+  return mergedPrEvent ?? immediateEvent;
 }
 
 function previewLatestPrStatusAnimation() {
