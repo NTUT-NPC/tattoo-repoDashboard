@@ -29,12 +29,14 @@ export type PullRequestCard = {
   ciStates: Array<{ name: string; status: string; conclusion: string | null; url: string | null }>;
   reviewStatus: 'draft' | 'pending review' | 'ci failed' | 'approved' | 'approved (no write)' | null;
   approvedCount: number;
+  mergedAt?: string | null;
 };
 
 const API_BASE = 'https://api.github.com';
 const OWNER = 'NTUT-NPC';
 const REPO = 'tattoo';
 const MAX_PRS = 12;
+const MAX_MERGED_PRS = 8;
 const TOKEN_STORAGE_KEY = 'github_api_token';
 declare const __DEFAULT_GITHUB_TOKEN__: string;
 
@@ -352,4 +354,37 @@ export async function fetchPrCards(): Promise<PullRequestCard[]> {
 
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });
+}
+
+export async function fetchRecentlyMergedPrCards(): Promise<PullRequestCard[]> {
+  const pulls = await request(
+    `/repos/${OWNER}/${REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=${MAX_MERGED_PRS * 3}`,
+  );
+
+  const mergedPulls = pulls
+    .filter((pr: any) => Boolean(pr.merged_at))
+    .sort((a: any, b: any) => new Date(b.merged_at).getTime() - new Date(a.merged_at).getTime())
+    .slice(0, MAX_MERGED_PRS);
+
+  return mergedPulls.map((pr: any) => ({
+    id: pr.id,
+    number: pr.number,
+    title: pr.title,
+    url: pr.html_url,
+    updatedAt: pr.merged_at ?? pr.updated_at,
+    mergedAt: pr.merged_at,
+    branchName: pr.head?.ref ?? 'unknown',
+    author: {
+      login: pr.user?.login ?? 'unknown',
+      avatarUrl: pr.user?.avatar_url ?? '',
+      url: pr.user?.html_url ?? pr.html_url,
+    },
+    latestCommit: null,
+    latestComment: null,
+    linkedIssue: null,
+    buildNumber: null,
+    ciStates: [],
+    reviewStatus: null,
+    approvedCount: 0,
+  })) as PullRequestCard[];
 }
