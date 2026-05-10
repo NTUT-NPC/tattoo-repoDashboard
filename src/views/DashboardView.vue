@@ -485,6 +485,7 @@ const DEFAULT_STATUS_ANIMATION_SOUND_NAME = 'cash.mp3';
 const DEFAULT_STATUS_ANIMATION_CLOSE_DELAY_SEC = 8;
 const MIN_STATUS_ANIMATION_CLOSE_DELAY_SEC = 3;
 const MAX_STATUS_ANIMATION_CLOSE_DELAY_SEC = 20;
+const MERGE_STATE_ANIMATION_PRIORITY_WAIT_MS = 800;
 const STATUS_ANIMATION_CLOSE_DELAY_STORAGE_KEY = 'tattoo-dashboard-pr-status-close-delay-sec';
 const ONBOARDING_DISMISSED_STORAGE_KEY = 'tattoo-dashboard-onboarding-dismissed';
 const AUTO_UPDATE_CHECK_ENABLED_STORAGE_KEY = 'tattoo-dashboard-auto-update-check-enabled';
@@ -500,6 +501,12 @@ type NavigatorWithWakeLock = Navigator & {
   wakeLock?: {
     request: (type: 'screen') => Promise<WakeLockSentinel>;
   };
+};
+type StatusAnimationEvent = {
+  pr: PullRequestCard;
+  effect: 'new_pr' | 'ci_complete' | 'merged';
+  message: string;
+  ciSummary?: Array<{ name: string; result: 'success' | 'failure' }>;
 };
 
 const { t, intlLocale, resolvedLocale, languageMode, setLanguageMode } = useI18n();
@@ -766,6 +773,11 @@ function notifyStatusAnimationEvent(params: {
   };
 }
 
+function emitStatusAnimationEvent(event: StatusAnimationEvent) {
+  triggerPrStatusAnimation(event);
+  notifyStatusAnimationEvent(event);
+}
+
 async function requestDesktopNotificationPermission() {
   if (!('Notification' in window)) {
     setTokenMessage('message.notification.unsupported');
@@ -955,8 +967,7 @@ async function executeRefreshCycle() {
     if (!isFirstRefresh) {
       const animationEvent = await findStatusAnimationEvent(previousPrs, latestPrs);
       if (animationEvent) {
-        triggerPrStatusAnimation(animationEvent);
-        notifyStatusAnimationEvent(animationEvent);
+        emitStatusAnimationEvent(animationEvent);
       }
     }
 
@@ -1110,12 +1121,7 @@ function areAllCiStatesCompleted(pr: PullRequestCard) {
   });
 }
 
-function triggerPrStatusAnimation(params: {
-  pr: PullRequestCard;
-  effect: 'new_pr' | 'ci_complete' | 'merged';
-  message: string;
-  ciSummary?: Array<{ name: string; result: 'success' | 'failure' }>;
-}) {
+function triggerPrStatusAnimation(params: StatusAnimationEvent) {
   if (previewCloseTimer) clearTimeout(previewCloseTimer);
 
   showTokenPanel.value = false;
@@ -1137,11 +1143,42 @@ function triggerPrStatusAnimation(params: {
   }, statusAnimationCloseDelaySec.value * 1000);
 }
 
-async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentPrs: PullRequestCard[]) {
-  if (!previousPrs.length) return null;
+async function findMergedPrStatusAnimationEvent(removedPrs: PullRequestCard[]): Promise<StatusAnimationEvent | null> {
+  if (!removedPrs.length) return null;
 
-  const previousById = new Map(previousPrs.map((pr) => [pr.id, pr]));
+  return new Promise((resolve) => {
+    let pendingChecks = removedPrs.length;
+    let resolved = false;
 
+    removedPrs.forEach((removedPr) => {
+      void (async () => {
+        try {
+          const mergeState = await fetchPullRequestMergeState(removedPr.number);
+          if (mergeState.merged && !resolved) {
+            resolved = true;
+            resolve({
+              pr: removedPr,
+              effect: 'merged' as const,
+              message: t('message.animation.merged', { number: removedPr.number }),
+            });
+          }
+        } catch (mergeError) {
+          console.warn(`failed to check merge state for PR #${removedPr.number}`, mergeError);
+        } finally {
+          pendingChecks -= 1;
+          if (!resolved && pendingChecks === 0) {
+            resolve(null);
+          }
+        }
+      })();
+    });
+  });
+}
+
+function findImmediateStatusAnimationEvent(
+  previousById: Map<number, PullRequestCard>,
+  currentPrs: PullRequestCard[],
+): StatusAnimationEvent | null {
   const newPr = currentPrs.find((pr) => !previousById.has(pr.id));
   if (newPr) {
     return {
@@ -1165,25 +1202,41 @@ async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentP
     }
   }
 
+  return null;
+}
+
+async function findStatusAnimationEvent(
+  previousPrs: PullRequestCard[],
+  currentPrs: PullRequestCard[],
+): Promise<StatusAnimationEvent | null> {
+  if (!previousPrs.length) return null;
+
+  const previousById = new Map(previousPrs.map((pr) => [pr.id, pr]));
   const currentIds = new Set(currentPrs.map((pr) => pr.id));
   const removedPrs = previousPrs.filter((pr) => !currentIds.has(pr.id));
+  const immediateEvent = findImmediateStatusAnimationEvent(previousById, currentPrs);
 
-  for (const removedPr of removedPrs) {
-    try {
-      const mergeState = await fetchPullRequestMergeState(removedPr.number);
-      if (mergeState.merged) {
-        return {
-          pr: removedPr,
-          effect: 'merged' as const,
-          message: t('message.animation.merged', { number: removedPr.number }),
-        };
-      }
-    } catch (mergeError) {
-      console.warn(`failed to check merge state for PR #${removedPr.number}`, mergeError);
+  if (!removedPrs.length) return immediateEvent;
+
+  const mergedPrEventPromise = findMergedPrStatusAnimationEvent(removedPrs);
+  if (!immediateEvent) return mergedPrEventPromise;
+
+  const mergedPrEvent = await Promise.race<StatusAnimationEvent | null | 'timeout'>([
+    mergedPrEventPromise,
+    new Promise<'timeout'>((resolve) => {
+      window.setTimeout(() => resolve('timeout'), MERGE_STATE_ANIMATION_PRIORITY_WAIT_MS);
+    }),
+  ]);
+
+  if (mergedPrEvent !== 'timeout') return mergedPrEvent ?? immediateEvent;
+
+  void mergedPrEventPromise.then((lateMergedPrEvent) => {
+    if (lateMergedPrEvent) {
+      emitStatusAnimationEvent(lateMergedPrEvent);
     }
-  }
+  });
 
-  return null;
+  return immediateEvent;
 }
 
 function previewLatestPrStatusAnimation() {
