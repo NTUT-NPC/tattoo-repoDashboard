@@ -810,63 +810,34 @@ function scheduleNextRefreshCountdown() {
   refreshCountdownSec.value = refreshIntervalSec.value;
 }
 
-function getStatusSignature(pr: PullRequestCard) {
-  const ciSignature = pr.ciStates
-    .map((state) => `${state.name}:${state.status}:${state.conclusion ?? 'null'}`)
-    .join('|');
-
-  return `${pr.reviewStatus ?? 'none'}__${pr.approvedCount}__${ciSignature}`;
-}
-
-function formatReviewStatus(status: PullRequestCard['reviewStatus']): string {
-  if (!status) return 'none';
-  if (status === 'draft') return t('prCard.status.draft');
-  if (status === 'pending review') return t('prCard.status.pendingReview');
-  if (status === 'ci failed') return t('prCard.status.ciFailed');
-  if (status === 'approved') return t('prCard.status.approvedPlain');
-  if (status === 'approved (no write)') return t('prCard.status.approvedPlain');
-  return status;
-}
-
-function getPrStatusDescription(pr: PullRequestCard) {
-  const joiner = resolvedLocale.value === 'zh' ? '、' : ', ';
-  const ciDescription = pr.ciStates.length
-    ? pr.ciStates.map((state) => `${state.name}=${state.conclusion ?? state.status}`).join(joiner)
-    : t('ci.none');
-
-  return t('desktopNotification.body', {
-    review: formatReviewStatus(pr.reviewStatus),
-    approved: pr.approvedCount,
-    ci: ciDescription,
-  });
-}
-
-function notifyPrStatusChanges(previousPrs: PullRequestCard[], currentPrs: PullRequestCard[]) {
+function notifyStatusAnimationEvent(params: {
+  pr: PullRequestCard;
+  effect: 'new_pr' | 'ci_complete' | 'merged';
+}) {
   if (!desktopNotificationEnabled.value || !('Notification' in window) || Notification.permission !== 'granted') {
     return;
   }
 
-  if (!previousPrs.length) return;
-
-  const previousStatusById = new Map(previousPrs.map((pr) => [pr.id, getStatusSignature(pr)]));
-  const changedPrs = currentPrs.filter((pr) => {
-    const previousSignature = previousStatusById.get(pr.id);
-    if (!previousSignature) return false;
-    return previousSignature !== getStatusSignature(pr);
+  const notification = new Notification(t('desktopNotification.title', { number: params.pr.number }), {
+    body: t(`desktopNotification.body.${params.effect}`),
+    icon: 'favicon.svg',
+    tag: `tattoo-animation-${params.effect}-${params.pr.id}`,
+    renotify: true,
   });
 
-  changedPrs.forEach((pr) => {
-    const notification = new Notification(t('desktopNotification.title', { number: pr.number }), {
-      body: getPrStatusDescription(pr),
-      icon: '/favicon.svg',
-      tag: `tattoo-pr-${pr.id}`,
-      renotify: true,
-    });
+  notification.onclick = () => {
+    if (params.effect === 'merged') {
+      window.open(params.pr.url, '_blank', 'noopener,noreferrer');
+      notification.close();
+      return;
+    }
 
-    notification.onclick = () => {
-      window.open(pr.url, '_blank', 'noopener,noreferrer');
-    };
-  });
+    window.focus();
+    const dashboardUrl = `${window.location.origin}${window.location.pathname}${window.location.search}`;
+    const dashboardTab = window.open(dashboardUrl, 'tattoo-dashboard');
+    dashboardTab?.focus();
+    notification.close();
+  };
 }
 
 async function requestDesktopNotificationPermission() {
@@ -1058,12 +1029,12 @@ async function executeRefreshCycle() {
     if (showRecentlyMerged.value) {
       await refreshRecentlyMergedPrs();
     }
-    notifyPrStatusChanges(previousPrs, latestPrs);
 
     if (!isFirstRefresh) {
       const animationEvent = await findStatusAnimationEvent(previousPrs, latestPrs);
       if (animationEvent) {
         triggerPrStatusAnimation(animationEvent);
+        notifyStatusAnimationEvent(animationEvent);
       }
     }
 
@@ -1245,7 +1216,7 @@ function triggerPrStatusAnimation(params: {
 }
 
 async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentPrs: PullRequestCard[]) {
-  if (!previousPrs.length || !currentPrs.length) return null;
+  if (!previousPrs.length) return null;
 
   const previousById = new Map(previousPrs.map((pr) => [pr.id, pr]));
 
