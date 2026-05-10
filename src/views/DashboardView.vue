@@ -773,6 +773,11 @@ function notifyStatusAnimationEvent(params: {
   };
 }
 
+function emitStatusAnimationEvent(event: StatusAnimationEvent) {
+  triggerPrStatusAnimation(event);
+  notifyStatusAnimationEvent(event);
+}
+
 async function requestDesktopNotificationPermission() {
   if (!('Notification' in window)) {
     setTokenMessage('message.notification.unsupported');
@@ -962,8 +967,7 @@ async function executeRefreshCycle() {
     if (!isFirstRefresh) {
       const animationEvent = await findStatusAnimationEvent(previousPrs, latestPrs);
       if (animationEvent) {
-        triggerPrStatusAnimation(animationEvent);
-        notifyStatusAnimationEvent(animationEvent);
+        emitStatusAnimationEvent(animationEvent);
       }
     }
 
@@ -1217,14 +1221,22 @@ async function findStatusAnimationEvent(
   const mergedPrEventPromise = findMergedPrStatusAnimationEvent(removedPrs);
   if (!immediateEvent) return mergedPrEventPromise;
 
-  const mergedPrEvent = await Promise.race([
+  const mergedPrEvent = await Promise.race<StatusAnimationEvent | null | 'timeout'>([
     mergedPrEventPromise,
-    new Promise<null>((resolve) => {
-      window.setTimeout(() => resolve(null), MERGE_STATE_ANIMATION_PRIORITY_WAIT_MS);
+    new Promise<'timeout'>((resolve) => {
+      window.setTimeout(() => resolve('timeout'), MERGE_STATE_ANIMATION_PRIORITY_WAIT_MS);
     }),
   ]);
 
-  return mergedPrEvent ?? immediateEvent;
+  if (mergedPrEvent !== 'timeout') return mergedPrEvent ?? immediateEvent;
+
+  void mergedPrEventPromise.then((lateMergedPrEvent) => {
+    if (lateMergedPrEvent) {
+      emitStatusAnimationEvent(lateMergedPrEvent);
+    }
+  });
+
+  return immediateEvent;
 }
 
 function previewLatestPrStatusAnimation() {
