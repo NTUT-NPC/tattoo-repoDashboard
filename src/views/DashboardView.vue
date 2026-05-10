@@ -438,9 +438,7 @@
           @click="handleDetailMaskClick"
         >
           <div class="detail-card-wrap">
-            <div class="detail-toolbar">
-              <button type="button" class="close-btn" :aria-label="t('aria.closeDetails')" @click="closePrDetails">✕</button>
-            </div>
+            <button type="button" class="close-btn close-btn-floating" :aria-label="t('aria.closeDetails')" @click="closePrDetails">✕</button>
             <PrCard
               :pr="selectedPr"
               cinematic
@@ -748,12 +746,18 @@ function notifyStatusAnimationEvent(params: {
 
   const notification = new Notification(t('desktopNotification.title', { number: params.pr.number }), {
     body: t(`desktopNotification.body.${params.effect}`),
-    icon: '/favicon.svg',
+    icon: 'favicon.svg',
     tag: `tattoo-animation-${params.effect}-${params.pr.id}`,
     renotify: true,
   });
 
   notification.onclick = () => {
+    if (params.effect === 'merged') {
+      window.open(params.pr.url, '_blank', 'noopener,noreferrer');
+      notification.close();
+      return;
+    }
+
     window.focus();
     const dashboardUrl = `${window.location.origin}${window.location.pathname}${window.location.search}`;
     const dashboardTab = window.open(dashboardUrl, 'tattoo-dashboard');
@@ -1134,7 +1138,7 @@ function triggerPrStatusAnimation(params: {
 }
 
 async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentPrs: PullRequestCard[]) {
-  if (!previousPrs.length || !currentPrs.length) return null;
+  if (!previousPrs.length) return null;
 
   const previousById = new Map(previousPrs.map((pr) => [pr.id, pr]));
 
@@ -1753,8 +1757,6 @@ code { color:#93c5fd; }
   max-height: 92vh;
   margin-inline: auto;
   position: relative;
-  display: grid;
-  gap: .45rem;
   transform-origin: center;
   z-index: 1;
   border: 1px solid rgba(148, 197, 255, .28);
@@ -1775,7 +1777,6 @@ code { color:#93c5fd; }
   background: linear-gradient(180deg, rgba(15, 23, 42, .88), rgba(15, 23, 42, 0));
   border-radius: 12px 12px 0 0;
 }
-
 .detail-modal-enter-active,
 .detail-modal-leave-active {
   transition: background-color .34s ease, backdrop-filter .34s ease;
@@ -1812,7 +1813,6 @@ code { color:#93c5fd; }
 }
 
 .close-btn {
-  z-index: 1;
   width: 34px;
   height: 34px;
   border-radius: 999px;
@@ -1820,6 +1820,12 @@ code { color:#93c5fd; }
   background: rgba(15, 23, 42, .92);
   color: #e2e8f0;
   cursor: pointer;
+}
+.close-btn-floating {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
 }
 
 @media (max-width: 950px) and (orientation: landscape) {
@@ -1910,6 +1916,10 @@ code { color:#93c5fd; }
     max-height: calc(100vh - 1.1rem);
     border-radius: 14px;
     padding: .45rem;
+  }
+  .close-btn-floating {
+    top: 8px;
+    right: 8px;
   }
 }
 </style>
