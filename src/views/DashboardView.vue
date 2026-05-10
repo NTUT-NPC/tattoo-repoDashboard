@@ -40,15 +40,40 @@
 
     <p v-if="error" class="error">{{ error }}</p>
 
-    <section class="grid">
-      <div
-        v-for="pr in prs"
-        :key="pr.id"
-        class="card-slot"
-        :data-pr-id="pr.id"
-        @click="openPrDetails(pr, $event)"
-      >
-        <PrCard :pr="pr" :activity-display-mode="activityDisplayMode" :date-display-mode="dateDisplayMode" />
+    <section class="grid-section">
+      <div class="section-heading">
+        <h2>{{ t('section.openPrs') }}</h2>
+      </div>
+      <div class="grid">
+        <div
+          v-for="pr in prs"
+          :key="pr.id"
+          class="card-slot"
+          :data-pr-id="pr.id"
+          @click="openPrDetails(pr, $event)"
+        >
+          <PrCard :pr="pr" :activity-display-mode="activityDisplayMode" :date-display-mode="dateDisplayMode" />
+        </div>
+      </div>
+    </section>
+
+    <section class="merged-section">
+      <button type="button" class="merged-toggle" @click="toggleMergedSection">
+        <span>{{ t('section.recentlyMerged') }}</span>
+        <span>{{ showRecentlyMerged ? '▾' : '▸' }}</span>
+      </button>
+      <div v-if="showRecentlyMerged" class="merged-list">
+        <a
+          v-for="pr in recentlyMergedPrs"
+          :key="`merged-${pr.id}`"
+          class="merged-item"
+          :href="pr.url"
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          <span class="merged-item-title">#{{ pr.number }} · {{ pr.title }}</span>
+          <span class="merged-item-time">{{ t('section.mergedAt', { time: formatMergedAt(pr.mergedAt ?? pr.updatedAt) }) }}</span>
+        </a>
       </div>
     </section>
 
@@ -188,6 +213,23 @@
                           <span>{{ t('settings.dateMode.full') }}</span>
                         </label>
                       </div>
+                    </div>
+                  </div>
+
+                  <div class="settings-row">
+                    <div class="settings-copy">
+                      <span class="setting-title">{{ t('settings.recentlyMergedDefaultOpen') }}</span>
+                    </div>
+                    <div class="settings-control settings-control-actions">
+                      <label class="toggle-control" for="recently-merged-default-open">
+                        <input
+                          id="recently-merged-default-open"
+                          v-model="recentlyMergedOpenByDefault"
+                          type="checkbox"
+                          @change="applyRecentlyMergedOpenByDefault"
+                        />
+                        <span>{{ t('settings.recentlyMergedDefaultOpen.toggle') }}</span>
+                      </label>
                     </div>
                   </div>
                 </section>
@@ -459,6 +501,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import PrCard from '../components/PrCard.vue';
 import {
   fetchPrCards,
+  fetchRecentlyMergedPrCards,
   fetchPullRequestMergeState,
   hasSavedGithubToken,
   isUsingEnvironmentGithubToken,
@@ -489,6 +532,7 @@ const STATUS_ANIMATION_CLOSE_DELAY_STORAGE_KEY = 'tattoo-dashboard-pr-status-clo
 const ONBOARDING_DISMISSED_STORAGE_KEY = 'tattoo-dashboard-onboarding-dismissed';
 const AUTO_UPDATE_CHECK_ENABLED_STORAGE_KEY = 'tattoo-dashboard-auto-update-check-enabled';
 const AUTO_UPDATE_CHECK_INTERVAL_MIN_STORAGE_KEY = 'tattoo-dashboard-auto-update-check-interval-min';
+const RECENTLY_MERGED_OPEN_BY_DEFAULT_STORAGE_KEY = 'tattoo-dashboard-recently-merged-open-by-default';
 const DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN = 10;
 const MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN = 1;
 const MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN = 1000;
@@ -539,6 +583,9 @@ const detailShowEffect = ref(false);
 const autoUpdateCheckEnabled = ref(false);
 const autoUpdateCheckIntervalMin = ref(DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN);
 const autoUpdateCheckIntervalMinInput = ref(DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN);
+const recentlyMergedPrs = ref<PullRequestCard[]>([]);
+const showRecentlyMerged = ref(false);
+const recentlyMergedOpenByDefault = ref(false);
 let timer: ReturnType<typeof setInterval> | null = null;
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 let previewCloseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -659,6 +706,26 @@ function readAutoUpdateCheckIntervalMinFromStorage() {
   if (!Number.isInteger(raw)) return DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN;
   if (raw < MIN_AUTO_UPDATE_CHECK_INTERVAL_MIN || raw > MAX_AUTO_UPDATE_CHECK_INTERVAL_MIN) return DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_MIN;
   return raw;
+}
+function readRecentlyMergedOpenByDefaultFromStorage() {
+  return window.localStorage.getItem(RECENTLY_MERGED_OPEN_BY_DEFAULT_STORAGE_KEY) === 'true';
+}
+function applyRecentlyMergedOpenByDefault() {
+  window.localStorage.setItem(RECENTLY_MERGED_OPEN_BY_DEFAULT_STORAGE_KEY, String(recentlyMergedOpenByDefault.value));
+  showRecentlyMerged.value = recentlyMergedOpenByDefault.value;
+}
+function toggleMergedSection() {
+  showRecentlyMerged.value = !showRecentlyMerged.value;
+  if (showRecentlyMerged.value && recentlyMergedPrs.value.length === 0) {
+    void refreshRecentlyMergedPrs();
+  }
+}
+function formatMergedAt(value: string) {
+  return new Date(value).toLocaleString(intlLocale.value);
+}
+
+async function refreshRecentlyMergedPrs() {
+  recentlyMergedPrs.value = await fetchRecentlyMergedPrCards();
 }
 function applyAutoUpdateCheckEnabled() {
   window.localStorage.setItem(AUTO_UPDATE_CHECK_ENABLED_STORAGE_KEY, String(autoUpdateCheckEnabled.value));
@@ -981,6 +1048,9 @@ async function executeRefreshCycle() {
     const previousPrs = [...prs.value];
     const latestPrs = await fetchPrCards();
     prs.value = latestPrs;
+    if (showRecentlyMerged.value) {
+      await refreshRecentlyMergedPrs();
+    }
     notifyPrStatusChanges(previousPrs, latestPrs);
 
     if (!isFirstRefresh) {
@@ -1285,6 +1355,8 @@ onMounted(async () => {
   autoUpdateCheckEnabled.value = readAutoUpdateCheckEnabledFromStorage();
   autoUpdateCheckIntervalMin.value = readAutoUpdateCheckIntervalMinFromStorage();
   autoUpdateCheckIntervalMinInput.value = autoUpdateCheckIntervalMin.value;
+  recentlyMergedOpenByDefault.value = readRecentlyMergedOpenByDefaultFromStorage();
+  showRecentlyMerged.value = recentlyMergedOpenByDefault.value;
   showOnboardingModal.value = window.localStorage.getItem(ONBOARDING_DISMISSED_STORAGE_KEY) !== 'true';
 
   hasTokenSaved.value = hasSavedGithubToken();
@@ -1434,7 +1506,37 @@ code { color:#93c5fd; }
 }
 .error { border:1px solid #dc2626; color:#fecaca; background:#3f1119; border-radius:10px; padding:.6rem .8rem; }
 .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.65rem; }
+.grid-section {
+  display: grid;
+  gap: .65rem;
+}
+.section-heading h2 {
+  margin: 0;
+  font-size: .95rem;
+  opacity: .85;
+}
 .card-slot { min-width: 0; cursor: zoom-in; }
+.merged-section {
+  margin-top: .9rem;
+  border: 1px solid #253453;
+  border-radius: 12px;
+  background: rgba(8, 14, 28, .65);
+}
+.merged-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: .65rem .8rem;
+  font-weight: 700;
+}
+.merged-list { display: grid; gap: .45rem; padding: 0 .8rem .8rem; }
+.merged-item { display: grid; text-decoration: none; color: inherit; gap: .15rem; padding: .45rem; border-radius: 8px; background: rgba(255,255,255,.03); }
+.merged-item-title { font-size: .9rem; }
+.merged-item-time { font-size: .78rem; opacity: .75; }
 
 .detail-mask {
   position: fixed;
