@@ -97,6 +97,10 @@
             }}
           </span>
         </a>
+        <div v-if="!latestActivity && !pr.latestCommit && !pr.latestComment" class="detail-block detail-empty">
+          <strong>{{ t('prCard.section.activity') }}</strong>
+          <span class="detail-text">{{ t('prCard.noRecentActivity') }}</span>
+        </div>
         <div v-if="pr.ciStates.length" class="detail-ci-list detail-block">
           <strong>{{ t('prCard.detailLabel.ci') }}</strong>
           <div class="detail-ci-items">
@@ -402,6 +406,7 @@ const statusClass = computed(() => {
 .detail-link { color:#e2e8f0; text-decoration:none; font-size:.78rem; }
 .detail-text { margin: 0; font-size: .8rem; color: #cbd5e1; }
 .detail-block {
+  min-width: 0;
   border: 1px solid #2d3f6f;
   border-radius: 10px;
   background: rgba(15, 23, 42, .42);
@@ -414,6 +419,10 @@ const statusClass = computed(() => {
   font-size: .76em;
   text-transform: uppercase;
   letter-spacing: .04em;
+}
+.detail-block span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .detail-ci-list { gap: .42rem; }
 .detail-ci-items {
