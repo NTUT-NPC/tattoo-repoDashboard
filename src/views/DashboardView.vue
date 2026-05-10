@@ -1171,6 +1171,23 @@ async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentP
   if (!previousPrs.length || !currentPrs.length) return null;
 
   const previousById = new Map(previousPrs.map((pr) => [pr.id, pr]));
+  const currentIds = new Set(currentPrs.map((pr) => pr.id));
+  const removedPrs = previousPrs.filter((pr) => !currentIds.has(pr.id));
+
+  for (const removedPr of removedPrs) {
+    try {
+      const mergeState = await fetchPullRequestMergeState(removedPr.number);
+      if (mergeState.merged) {
+        return {
+          pr: removedPr,
+          effect: 'merged' as const,
+          message: t('message.animation.merged', { number: removedPr.number }),
+        };
+      }
+    } catch (mergeError) {
+      console.warn(`failed to check merge state for PR #${removedPr.number}`, mergeError);
+    }
+  }
 
   const newPr = currentPrs.find((pr) => !previousById.has(pr.id));
   if (newPr) {
@@ -1192,24 +1209,6 @@ async function findStatusAnimationEvent(previousPrs: PullRequestCard[], currentP
         ciSummary: buildCiSummary(pr),
         message: t('message.animation.ciComplete', { number: pr.number }),
       };
-    }
-  }
-
-  const currentIds = new Set(currentPrs.map((pr) => pr.id));
-  const removedPrs = previousPrs.filter((pr) => !currentIds.has(pr.id));
-
-  for (const removedPr of removedPrs) {
-    try {
-      const mergeState = await fetchPullRequestMergeState(removedPr.number);
-      if (mergeState.merged) {
-        return {
-          pr: removedPr,
-          effect: 'merged' as const,
-          message: t('message.animation.merged', { number: removedPr.number }),
-        };
-      }
-    } catch (mergeError) {
-      console.warn(`failed to check merge state for PR #${removedPr.number}`, mergeError);
     }
   }
 
