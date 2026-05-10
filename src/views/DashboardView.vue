@@ -713,12 +713,11 @@ function readRecentlyMergedOpenByDefaultFromStorage() {
 function applyRecentlyMergedOpenByDefault() {
   window.localStorage.setItem(RECENTLY_MERGED_OPEN_BY_DEFAULT_STORAGE_KEY, String(recentlyMergedOpenByDefault.value));
   showRecentlyMerged.value = recentlyMergedOpenByDefault.value;
+  refreshRecentlyMergedPrsIfNeeded();
 }
 function toggleMergedSection() {
   showRecentlyMerged.value = !showRecentlyMerged.value;
-  if (showRecentlyMerged.value && recentlyMergedPrs.value.length === 0) {
-    void refreshRecentlyMergedPrs();
-  }
+  refreshRecentlyMergedPrsIfNeeded();
 }
 function formatMergedAt(value: string) {
   return new Date(value).toLocaleString(intlLocale.value);
@@ -726,6 +725,14 @@ function formatMergedAt(value: string) {
 
 async function refreshRecentlyMergedPrs() {
   recentlyMergedPrs.value = await fetchRecentlyMergedPrCards();
+}
+function refreshRecentlyMergedPrsIfNeeded() {
+  if (!showRecentlyMerged.value || recentlyMergedPrs.value.length > 0) return;
+
+  void refreshRecentlyMergedPrs().catch((e) => {
+    console.error(e);
+    errorKey.value = hasTokenSaved.value ? 'error.refreshFailedWithToken' : 'error.refreshFailedAnonymous';
+  });
 }
 function applyAutoUpdateCheckEnabled() {
   window.localStorage.setItem(AUTO_UPDATE_CHECK_ENABLED_STORAGE_KEY, String(autoUpdateCheckEnabled.value));
