@@ -1170,23 +1170,35 @@ function triggerPrStatusAnimation(params: StatusAnimationEvent) {
 }
 
 async function findMergedPrStatusAnimationEvent(removedPrs: PullRequestCard[]): Promise<StatusAnimationEvent | null> {
-  const mergeEvents = await Promise.all(removedPrs.map(async (removedPr) => {
-    try {
-      const mergeState = await fetchPullRequestMergeState(removedPr.number);
-      if (mergeState.merged) {
-        return {
-          pr: removedPr,
-          effect: 'merged' as const,
-          message: t('message.animation.merged', { number: removedPr.number }),
-        };
-      }
-    } catch (mergeError) {
-      console.warn(`failed to check merge state for PR #${removedPr.number}`, mergeError);
-    }
-    return null;
-  }));
+  if (!removedPrs.length) return null;
 
-  return mergeEvents.find((event): event is StatusAnimationEvent => Boolean(event)) ?? null;
+  return new Promise((resolve) => {
+    let pendingChecks = removedPrs.length;
+    let resolved = false;
+
+    removedPrs.forEach((removedPr) => {
+      void (async () => {
+        try {
+          const mergeState = await fetchPullRequestMergeState(removedPr.number);
+          if (mergeState.merged && !resolved) {
+            resolved = true;
+            resolve({
+              pr: removedPr,
+              effect: 'merged' as const,
+              message: t('message.animation.merged', { number: removedPr.number }),
+            });
+          }
+        } catch (mergeError) {
+          console.warn(`failed to check merge state for PR #${removedPr.number}`, mergeError);
+        } finally {
+          pendingChecks -= 1;
+          if (!resolved && pendingChecks === 0) {
+            resolve(null);
+          }
+        }
+      })();
+    });
+  });
 }
 
 function findImmediateStatusAnimationEvent(
