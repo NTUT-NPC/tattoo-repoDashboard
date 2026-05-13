@@ -79,7 +79,16 @@ function statusClass(item: CiItem) {
 </script>
 
 <style scoped>
-.ci-badges { display:flex; flex-wrap:wrap; align-items:center; gap: .3rem; }
+.ci-badges {
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:center;
+  gap: .3rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.ci-badges::-webkit-scrollbar { display: none; }
 .ci-item {
   display:inline-flex;
   align-items:center;
