@@ -5,7 +5,21 @@
         <div class="pr-meta">
           <a :href="pr.url" target="_blank" rel="noreferrer" class="pr-no">#{{ pr.number }}</a>
         </div>
-        <span v-if="statusLabel" class="review-status" :class="statusClass">{{ statusLabel }}</span>
+        <span
+          v-if="statusDisplay"
+          class="review-status"
+          :class="statusClass"
+          :data-compact-label="statusDisplay.compact"
+        >
+          <span class="status-main">{{ statusDisplay.full }}</span>
+          <span
+            v-if="statusDisplay.compact !== statusDisplay.full"
+            class="status-compact"
+            aria-hidden="true"
+          >
+            {{ statusDisplay.compact }}
+          </span>
+        </span>
       </div>
       <span class="build" :class="{ missing: !pr.buildNumber }">
         {{ t('prCard.ciBuild', { build: pr.buildNumber ?? t('prCard.ciBuild.na') }) }}
@@ -297,16 +311,27 @@ const statusClassMap = {
   'approved (no write)': 'is-pending-review',
 } as const;
 
-const statusLabel = computed(() => {
+const statusDisplay = computed(() => {
   const status = pr.value.reviewStatus;
-  if (!status) return '';
+  if (!status) return null;
   if (status === 'approved' || status === 'approved (no write)') {
-    return t('prCard.status.approved', { count: Math.max(1, pr.value.approvedCount) });
+    const approvedText = t('prCard.status.approved', { count: Math.max(1, pr.value.approvedCount) });
+    return { full: approvedText, compact: approvedText };
   }
-  if (status === 'draft') return t('prCard.status.draft');
-  if (status === 'pending review') return t('prCard.status.pendingReview');
-  if (status === 'ci failed') return t('prCard.status.ciFailed');
-  return '';
+  if (status === 'draft') {
+    const draftText = t('prCard.status.draft');
+    return { full: draftText, compact: draftText };
+  }
+  if (status === 'pending review') {
+    const pendingText = t('prCard.status.pendingReview');
+    const pendingCompact = resolvedLocale.value.startsWith('en') ? 'PENDING' : pendingText;
+    return { full: pendingText, compact: pendingCompact };
+  }
+  if (status === 'ci failed') {
+    const failedText = t('prCard.status.ciFailed');
+    return { full: failedText, compact: failedText };
+  }
+  return null;
 });
 
 const statusClass = computed(() => {
@@ -338,8 +363,19 @@ const statusClass = computed(() => {
   border-color: #4f75c8;
   box-shadow: 0 14px 26px rgba(0, 0, 0, .35), 0 0 0 1px rgba(96, 165, 250, .25);
 }
-.top { display:flex; justify-content:space-between; align-items:center; }
-.pr-head { display: flex; align-items: center; gap: .45rem; }
+.top {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap: .35rem;
+  min-width: 0;
+}
+.pr-head {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  min-width: 0;
+}
 .pr-meta { display:flex; flex-direction:column; gap:.2rem; }
 .pr-no { font-weight:800; color:#93c5fd; text-decoration:none; font-size:1rem; }
 .review-status {
@@ -353,12 +389,29 @@ const statusClass = computed(() => {
   line-height: 1.2;
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+.status-main { display: inline; }
+.status-compact { display: none; }
+@media (max-width: 1320px) {
+  .pr-card:not(.cinematic) .review-status.is-pending-review .status-main { display: none; }
+  .pr-card:not(.cinematic) .review-status.is-pending-review .status-compact { display: inline; }
 }
 .review-status.is-draft { color: #d1d5db; background: #374151; border-color: #4b5563; }
 .review-status.is-pending-review { color: #fde68a; background: #422006; border-color: #854d0e; }
 .review-status.is-ci-failed { color: #fecaca; background: #450a0a; border-color: #7f1d1d; }
 .review-status.is-approved { color: #bbf7d0; background: #052e16; border-color: #166534; }
-.build { font-weight:700; color:#fde68a; background:#422006; padding:.1rem .45rem; border-radius:999px; font-size:.74rem; }
+.build {
+  font-weight:700;
+  color:#fde68a;
+  background:#422006;
+  padding:.1rem .45rem;
+  border-radius:999px;
+  font-size:.74rem;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
 .build.missing { color:#cbd5e1; background:#334155; }
 .title {
   margin:0;
