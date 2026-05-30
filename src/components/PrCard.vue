@@ -324,7 +324,7 @@ const statusDisplay = computed(() => {
   }
   if (status === 'pending review') {
     const pendingText = t('prCard.status.pendingReview');
-    const pendingCompact = resolvedLocale.value.startsWith('en') ? 'PENDING' : pendingText;
+    const pendingCompact = t('prCard.status.pendingReviewCompact');
     return { full: pendingText, compact: pendingCompact };
   }
   if (status === 'ci failed') {
